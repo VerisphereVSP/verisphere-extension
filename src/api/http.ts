@@ -6,7 +6,7 @@ import { writeCreateClaim, writeSetStake } from "../wallet/writer";
 
 /**
  * Real backend adapter (hybrid transport, all via the background worker):
- *   - resolveArticle → verity-api gateway (LLM decomposition + on-chain matching)
+ *   - resolveArticle → verity-api gateway (phrase lookup + local pgvector match)
  *   - claim reads → the app directly (passthrough; preserves the app's per-IP limits)
  *   - writes → wallet/writer (direct-submit or gasless relay by wallet mode)
  */
@@ -32,7 +32,7 @@ function toClaim(j: any): Claim {
 
 export const httpApi: VerityAPI = {
   async resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult> {
-    const res = await bgFetch<{ groups?: any[]; fluff?: string[]; error?: string }>(`${gw}/article/claims`, {
+    const res = await bgFetch<{ groups?: any[]; fluff?: string[]; error?: string }>(`${gw}/article/match`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
@@ -55,12 +55,15 @@ export const httpApi: VerityAPI = {
     const res = await bgFetch<any>(`${appBase}/claims/${postId}/summary`);
     if (!res.ok || !res.json) throw new Error(res.error ?? `getClaim ${res.status}`);
     const claim = toClaim(res.json);
-    // The app indexer lags the chain by minutes. When it reports an unstaked
-    // claim, double-check the live on-chain totals so a just-staked claim
-    // doesn't render as "nothing staked".
-    if (claim.totalStake === 0) {
+    // The app indexer lags the chain by minutes — and the derived is_active
+    // flag lags separately, so a funded claim can report inactive (or unstaked)
+    // long after the stake landed. Whenever the summary says inactive, reconcile
+    // against the live on-chain totals so a claim above the activity threshold
+    // doesn't render as "below the activity threshold / nothing staked". Guard
+    // against a briefly-trailing RPC clobbering fresher app totals downward.
+    if (!claim.active) {
       const live = await liveTotals(postId);
-      if (live && live.total > 0) applyLive(claim, live);
+      if (live && live.total >= claim.totalStake) applyLive(claim, live);
     }
     return claim;
   },
@@ -90,14 +93,28 @@ export const httpApi: VerityAPI = {
   },
 
   async setStake(postId: number, targetVsp: number): Promise<Claim> {
+    // Snapshot the pre-stake on-chain total so we can tell when the gateway's
+    // RPC node has actually observed our change (see the poll below).
+    const before = await liveTotals(postId);
+    const prevTotal = before?.total ?? 0;
+
     await writeSetStake(postId, targetVsp);
+
     // Stake amounts come from the CHAIN (source of truth, reflects the tx we
     // just confirmed); score/edges come from the app summary and lag until the
     // indexer catches up — that's honest, scoring genuinely hasn't run yet.
-    const [claim, live] = await Promise.all([
-      httpApi.getClaim(postId).catch(() => minimalClaim(postId, "")),
-      liveTotals(postId),
-    ]);
+    const claim = await httpApi.getClaim(postId).catch(() => minimalClaim(postId, ""));
+
+    // The gateway's RPC node can trail the wallet's by a moment right after the
+    // receipt, so the first live read may still return the PRE-stake totals —
+    // which rendered a just-created+staked claim as "nothing staked / grey"
+    // until a reload. Poll briefly until the total reflects the confirmed
+    // change (or we run out of tries, in which case the reload path recovers).
+    let live = await liveTotals(postId);
+    for (let i = 0; i < 6 && (!live || live.total === prevTotal); i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      live = await liveTotals(postId);
+    }
     if (live) applyLive(claim, live);
     return claim;
   },

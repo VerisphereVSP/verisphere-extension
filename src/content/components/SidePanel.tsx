@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { tokens } from "../../shared/tokens";
+import { env } from "../../shared/env";
 import { fmtVsp, shortAddr } from "../../shared/format";
 import type { Claim, Edge } from "../../shared/types";
 import { api } from "../../api";
@@ -17,7 +18,8 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const { connected, address, connect, disconnect } = useWallet();
   const [claim, setClaim] = useState<Claim | undefined>(rec?.claim);
   const [edges, setEdges] = useState<{ incoming: Edge[]; outgoing: Edge[] }>({ incoming: [], outgoing: [] });
-  const isCreate = rec?.status === "eligible" && !claim;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isCreate = rec?.status === "eligible" && !claim && !rec?.emptyNotice;
   const intent = createIntents.get(sentenceId);
 
   useEffect(() => {
@@ -30,14 +32,29 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const refreshed = useRef(false);
   useEffect(() => {
     if (!claim || claim.postId <= 0 || refreshed.current) return;
-    if (claim.totalStake > 0) return; // already has real-looking data
+    // Refresh unless the claim already looks real AND active. An inactive flag
+    // on a funded claim is usually just the app's derived state lagging the
+    // chain, so re-fetch (getClaim reconciles active against live totals).
+    if (claim.totalStake > 0 && claim.active) return;
     refreshed.current = true;
     api.getClaim(claim.postId).then(applyClaim).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claim?.postId]);
 
-  function applyClaim(c: Claim) {
+  // Sticky: once a claim is adopted as a mere "similar" match (not an exact
+  // duplicate), neither this call nor the follow-up summary refresh should
+  // underline the source sentence — the sentence isn't that claim.
+  const paintSentenceRef = useRef(true);
+
+  function applyClaim(c: Claim, opts?: { noPaint?: boolean }) {
+    if (opts?.noPaint) paintSentenceRef.current = false;
     setClaim(c);
+    if (!paintSentenceRef.current) {
+      // Show the existing claim so the user can stake on it, but leave the
+      // article underlining to the authoritative page analysis.
+      createIntents.delete(sentenceId);
+      return;
+    }
     const r = records.get(sentenceId);
     if (r?.groupId) {
       // Claim groups update as a unit: every sentence expressing this claim
@@ -46,11 +63,17 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       repaintGroup(r.groupId);
     } else if (r) {
       r.claim = c;
-      // A brand-new claim upgrades the sentence to a live mark; paint it in
-      // place so the underline shows without a page reload.
-      if (r.status === "eligible") {
-        r.status = c.active ? "mapped" : "low-liquidity";
-        repaintSentence(sentenceId);
+      // Reflect the claim's live active state on the mark and repaint if it
+      // changed — not only on the first eligible→live upgrade. A placeholder
+      // (duplicate/similar) claim arrives inactive and paints grey-dashed; once
+      // the summary refresh reconciles it against live stake, the underline must
+      // upgrade to solid. Leave "diverged" alone (its own wording-changed style).
+      if (r.status === "eligible" || r.status === "mapped" || r.status === "low-liquidity") {
+        const next = c.active ? "mapped" : "low-liquidity";
+        if (r.status !== next) {
+          r.status = next;
+          repaintSentence(sentenceId);
+        }
       }
     }
     createIntents.delete(sentenceId);
@@ -70,9 +93,39 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {connected ? (
-            <button onClick={() => disconnect()} style={walletPill} title="Disconnect">
-              {shortAddr(address)}
-            </button>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setMenuOpen((v) => !v)} style={walletPill} title="Account" aria-haspopup="menu" aria-expanded={menuOpen}>
+                {shortAddr(address)} <span style={{ fontSize: 13, opacity: 0.9, marginLeft: 1 }}>▾</span>
+              </button>
+              {menuOpen && (
+                <>
+                  {/* Click-away backdrop (kept inside the shadow overlay). */}
+                  <div style={backdrop} onClick={() => setMenuOpen(false)} />
+                  <div style={menu} role="menu">
+                    <a
+                      href={env.portfolioUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={menuItem}
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Portfolio ↗
+                    </a>
+                    <button
+                      style={menuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        disconnect();
+                      }}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <button onClick={() => connect()} style={walletPill}>Connect</button>
           )}
@@ -81,7 +134,9 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       </div>
 
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-        {rec.choices && rec.choices.length > 0 ? (
+        {rec.emptyNotice ? (
+          <EmptyPrompt />
+        ) : rec.choices && rec.choices.length > 0 ? (
           <ClaimChooser rec={rec} />
         ) : isCreate ? (
           <>
@@ -102,7 +157,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
             </div>
 
             <div style={{ fontSize: 15, lineHeight: 1.5, color: tokens.ink, fontWeight: 600, marginBottom: 12 }}>
-              {claim.text}
+              {claim.text || rec.canonicalText || rec.text}
             </div>
 
             {rec.status === "diverged" && (
@@ -140,6 +195,39 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       <div style={foot}>
         Verity scores are staked market positions, not authoritative fact rulings.
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shown when the launcher is opened but the page has no on-chain claims yet:
+ * guide the user to start by selecting text. Reflects analysis progress.
+ */
+function EmptyPrompt() {
+  const msg = pageStatus.loading
+    ? "Analyzing this article — one moment…"
+    : pageStatus.error
+    ? `Analysis failed: ${pageStatus.error}`
+    : "Please select a claim to support or challenge to begin.";
+  const guiding = !pageStatus.loading && !pageStatus.error;
+  return (
+    <div style={{ textAlign: "center", padding: "48px 18px", color: tokens.muted }}>
+      <img
+        src={chrome.runtime.getURL("icons/icon-128.png")}
+        alt=""
+        style={{ width: 56, height: 56, borderRadius: 14, opacity: 0.9, marginBottom: 14 }}
+      />
+      <div style={{ fontSize: 14, lineHeight: 1.5, color: tokens.ink, fontWeight: 700 }}>{msg}</div>
+      {guiding && (
+        <div style={{ fontSize: 12.5, color: tokens.muted, marginTop: 8, lineHeight: 1.5 }}>
+          Highlight any sentence in the article, then choose <b>Support</b> or <b>Challenge</b> from the pill.
+        </div>
+      )}
+      {pageStatus.loading && (
+        <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+          <Dots />
+        </div>
+      )}
     </div>
   );
 }
@@ -212,8 +300,9 @@ function ClaimChooser({ rec }: { rec: SentenceRecord }) {
 }
 
 /**
- * Shown when a selection touched no claim-bearing sentence: explains why, and
- * offers the paragraph's real claims (if any) as one-click alternatives, while
+ * Shown when a selection landed on analyzed text with no matching on-chain
+ * claim: an informational nudge (not a warning) that no claim exists here yet,
+ * offering the paragraph's real claims (if any) as one-click alternatives while
  * the validator below still lets the user formulate a claim themselves.
  */
 function FluffNotice({ rec }: { rec: { el: HTMLElement } }) {
@@ -229,13 +318,13 @@ function FluffNotice({ rec }: { rec: { el: HTMLElement } }) {
   }
 
   return (
-    <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: 10, marginBottom: 14 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
-        ⚠ No checkable claim found here
+    <div style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 8, padding: 10, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: tokens.brandInk, marginBottom: 4 }}>
+        ℹ No existing claim here yet
       </div>
-      <div style={{ fontSize: 12, color: "#92400e", lineHeight: 1.45 }}>
-        This text reads as narrative or connective prose rather than a standalone factual assertion.
-        {nearby.length > 0 ? " Nearby claims in this paragraph:" : " You can still write a claim of your own below."}
+      <div style={{ fontSize: 12, color: "#3730a3", lineHeight: 1.45 }}>
+        No one has staked a claim matching this text yet.
+        {nearby.length > 0 ? " Nearby claims in this paragraph:" : " You can create one below."}
       </div>
       {nearby.map((n) => (
         <button
@@ -325,6 +414,40 @@ const walletPill: React.CSSProperties = {
   color: "#fff",
   fontSize: 12,
   fontWeight: 600,
+  cursor: "pointer",
+};
+// Click-away layer behind the account dropdown so any outside click closes it.
+const backdrop: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: tokens.z,
+};
+const menu: React.CSSProperties = {
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  right: 0,
+  minWidth: 150,
+  background: tokens.surface,
+  border: `1px solid ${tokens.line}`,
+  borderRadius: 10,
+  boxShadow: tokens.shadow,
+  padding: 4,
+  display: "flex",
+  flexDirection: "column",
+  zIndex: tokens.z + 1,
+};
+const menuItem: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "none",
+  background: "transparent",
+  color: tokens.ink,
+  fontSize: 13,
+  fontWeight: 600,
+  textDecoration: "none",
   cursor: "pointer",
 };
 const closeBtn: React.CSSProperties = {

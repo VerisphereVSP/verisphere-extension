@@ -75,6 +75,10 @@ function classFor(rec: SentenceRecord): string {
 function wrapRange(rec: SentenceRecord) {
   const color = rec.claim ? evsToUnderline(rec.claim.evs) : tokens.brand;
   const cls = classFor(rec);
+  // Underline just this claim's fragment when known (multi-claim sentences);
+  // otherwise the whole sentence.
+  const rangeStart = rec.claimStart ?? rec.start;
+  const rangeEnd = rec.claimEnd ?? rec.end;
   let offset = 0;
   const walker = document.createTreeWalker(rec.el, NodeFilter.SHOW_TEXT);
   const toWrap: { node: Text; from: number; to: number }[] = [];
@@ -84,13 +88,13 @@ function wrapRange(rec: SentenceRecord) {
     const len = node.data.length;
     const nodeStart = offset;
     const nodeEnd = offset + len;
-    const from = Math.max(rec.start, nodeStart);
-    const to = Math.min(rec.end, nodeEnd);
+    const from = Math.max(rangeStart, nodeStart);
+    const to = Math.min(rangeEnd, nodeEnd);
     if (from < to) {
       toWrap.push({ node, from: from - nodeStart, to: to - nodeStart });
     }
     offset = nodeEnd;
-    if (nodeStart >= rec.end) break;
+    if (nodeStart >= rangeEnd) break;
     node = walker.nextNode() as Text | null;
   }
 

@@ -10,11 +10,23 @@ import type { Claim, ClaimGroup, SentenceMatch } from "../shared/types";
 export interface SentenceRecord extends SentenceMatch {
   /** Paragraph element the sentence lives in. */
   el: HTMLElement;
-  /** Char offsets within `el.textContent`. */
+  /** Char offsets of the whole sentence within `el.textContent`. */
   start: number;
   end: number;
+  /**
+   * Optional char offsets (within `el.textContent`) of just this claim's
+   * fragment of the sentence — set when the sentence expresses multiple claims,
+   * so the mark underlines only the relevant clause. Falls back to start/end.
+   */
+  claimStart?: number;
+  claimEnd?: number;
   /** Selection touched only fluff — panel shows the no-claim empty state. */
   fluffNotice?: boolean;
+  /**
+   * Launcher opened with no on-chain claims on the page — the panel shows a
+   * "select a claim to begin" prompt instead of any claim/create UI.
+   */
+  emptyNotice?: boolean;
   /**
    * Selection touched several claims — groupIds to choose between (best
    * selection-affinity first). The panel renders a chooser instead of

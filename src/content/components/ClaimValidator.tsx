@@ -45,7 +45,12 @@ export function ClaimValidator({
   initialText: string;
   /** If present, the user came from the Support/Challenge pill: create + stake. */
   intentSide?: StakeSide;
-  onResolved: (claim: Claim) => void;
+  /**
+   * Resolve to an existing/created claim. `noPaint` means "don't underline the
+   * source sentence" — used when adopting a merely-similar (non-duplicate)
+   * claim, which shouldn't relabel the article text.
+   */
+  onResolved: (claim: Claim, opts?: { noPaint?: boolean }) => void;
 }) {
   const { connected, address, connect, signer, mode } = useWallet();
   const writeStage = useWriteStage();
@@ -154,6 +159,10 @@ export function ClaimValidator({
     setPhase("creating");
     try {
       const { claim } = await api.createClaim(canonical, signer, addr);
+      // The app summary lags indexing, so a just-created claim often comes back
+      // with empty text — stamp the canonical we just created so the panel shows
+      // the claim text immediately instead of a blank line above the VS bar.
+      if (!claim.text) claim.text = canonical;
       // Combined create-and-stake: if the user set a position and we have a real
       // post id, apply the stake right after creating (second confirmation).
       const amount = parseFloat(stakeAmount) || 0;
@@ -172,6 +181,7 @@ export function ClaimValidator({
         const signed = side === "challenge" ? -amount : amount;
         try {
           const staked = await api.setStake(claim.postId, signed, signer, addr);
+          if (!staked.text) staked.text = canonical;
           onResolved(staked);
           return;
         } catch (e) {
@@ -237,6 +247,7 @@ export function ClaimValidator({
             setOverride={setOverride}
             onUse={(t) => { setText(t); runValidate(t); }}
             onStakeExisting={onResolved}
+            onUseSimilar={(c) => onResolved(c, { noPaint: true })}
           />
 
           {wantStake && verdict !== "duplicate" && (
@@ -437,6 +448,7 @@ function VerdictSection({
   setOverride,
   onUse,
   onStakeExisting,
+  onUseSimilar,
 }: {
   verdict: string;
   duplicateOf: Claim | null;
@@ -446,6 +458,7 @@ function VerdictSection({
   setOverride: (b: boolean) => void;
   onUse: (t: string) => void;
   onStakeExisting: (c: Claim) => void;
+  onUseSimilar: (c: Claim) => void;
 }) {
   if (verdict === "duplicate" && duplicateOf) {
     return (
@@ -496,7 +509,7 @@ function VerdictSection({
             {similar.map((s) => (
               <div key={s.claim.postId} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0" }}>
                 <span style={{ fontSize: 12.5, color: tokens.ink }}>{s.claim.text}</span>
-                <button onClick={() => onStakeExisting(s.claim)} style={ghostBtn}>Use</button>
+                <button onClick={() => onUseSimilar(s.claim)} style={ghostBtn}>Use</button>
               </div>
             ))}
           </div>

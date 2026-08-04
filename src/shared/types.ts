@@ -83,21 +83,16 @@ export interface ClaimGroup {
   claim?: Claim;
 }
 
-/** One paragraph of the page — the lazy-loading + server-cache unit. */
-export interface ParagraphInput {
-  paragraphId: string;
-  /** Preceding sentences (context for pronoun resolution, not analyzed). */
-  context?: string[];
-  sentences: { sentenceId: string; text: string }[];
-}
-
-/** Payload to decompose+resolve a batch of paragraphs (sent as they scroll into view). */
+/** Payload to locate on-chain claims in a page (sent as sentences scroll into view). */
 export interface ArticleResolveRequest {
   url: string;
   title: string;
-  /** Wikipedia revision id — pins the article text for caching. */
+  /** Wikipedia revision id — pins the article text. */
   revisionId?: string | null;
-  paragraphs: ParagraphInput[];
+  /** Salient phrases (title, wikilink anchors, headings) for candidate lookup. */
+  phrases: string[];
+  /** Flat sentences currently in view to locate against candidate claims. */
+  sentences: { sentenceId: string; text: string }[];
 }
 
 export interface ArticleResolveResult {

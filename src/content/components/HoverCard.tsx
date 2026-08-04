@@ -1,10 +1,31 @@
 import { tokens } from "../../shared/tokens";
 import { fmtVsp } from "../../shared/format";
 import type { SentenceRecord } from "../store";
-import { VSChip } from "./VS";
 
 const CARD_WIDTH = 360;
 const PANEL_WIDTH = 380;
+
+/**
+ * Net staked position (support − challenge) as a signed VSP pill. Preferred
+ * over the Verity Score here: one-sided claims saturate the score to ±100,
+ * which reads as "always +100/−100" and hides how much is actually staked.
+ */
+function NetChip({ support, challenge, active }: { support: number; challenge: number; active: boolean }) {
+  const net = support - challenge;
+  const color = !active ? tokens.faint : net > 0 ? tokens.support : net < 0 ? tokens.challenge : tokens.muted;
+  const sign = net > 0 ? "+" : "";
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "3px 10px", borderRadius: 999, background: tokens.surfaceAlt,
+        fontSize: 13, fontWeight: 700, color,
+      }}
+    >
+      {sign}{fmtVsp(net)} VSP net
+    </span>
+  );
+}
 
 /** Lightweight popover shown when hovering a claim mark. */
 export function HoverCard({ rec, rect, panelOpen = false }: { rec: SentenceRecord; rect: DOMRect; panelOpen?: boolean }) {
@@ -45,7 +66,7 @@ export function HoverCard({ rec, rect, panelOpen = false }: { rec: SentenceRecor
       ) : c ? (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <VSChip evs={c.evs} active={c.active} />
+            <NetChip support={c.supportStake} challenge={c.challengeStake} active={c.active} />
             <span style={{ fontSize: 11, color: tokens.faint }}>
               {rec.status === "diverged" ? "wording changed" : rec.status === "low-liquidity" ? "low liquidity" : `#${c.postId}`}
             </span>

@@ -24,6 +24,10 @@ export interface ExpandedSelection {
   /** Char offsets of the snapped sentence within `el`'s raw textContent. */
   start: number;
   end: number;
+  /** Char offsets of the user's LITERAL selection (before sentence snapping) —
+   *  lets callers tell WHICH clause of a multi-claim sentence was meant. */
+  rawStart: number;
+  rawEnd: number;
 }
 
 /** Snap a selection to sentence boundaries, returning text + DOM position. */
@@ -77,7 +81,7 @@ export function expandToSentenceRange(sel: Selection): ExpandedSelection | null 
     .replace(/\s+/g, " ")
     .trim();
   if (!text) return null;
-  return { text, el: block, start, end };
+  return { text, el: block, start, end, rawStart: startOffset, rawEnd: endOffset };
 }
 
 /** Text-only convenience wrapper. */

@@ -9,11 +9,10 @@
 #     verity/            (this repo — the extension itself runs on the host)
 #     verity-api/
 #     verity-ingestor/
-#     verity-dashboard/
 #
-# Brings up the gateway (verity-api) + the ingestor + the dashboard
-# dev server, all with hot reload (sources are bind-mounted; tsx/vite watch
-# them from inside the containers). node_modules live in named volumes so
+# Brings up the gateway (verity-api) + the ingestor, both with hot reload
+# (sources are bind-mounted; tsx watches them from inside the containers).
+# node_modules live in named volumes so
 # container-native binaries (esbuild etc.) don't clash with host installs —
 # first start runs npm install per service, so it takes a few minutes once.
 #
@@ -60,18 +59,6 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in verity/.env — use host.docker.internal:5432, not localhost}
 
-  verity-dashboard:
-    image: node:22-alpine
-    working_dir: /app
-    # --host 0.0.0.0 so Vite accepts connections from outside the container.
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    volumes:
-      - ../verity-dashboard:/app
-      - verity-dashboard-modules:/app/node_modules
-    ports:
-      - "5183:5183"
-
 volumes:
   verity-api-modules:
   verity-ingestor-modules:
-  verity-dashboard-modules:

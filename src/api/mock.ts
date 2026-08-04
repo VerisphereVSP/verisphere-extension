@@ -51,13 +51,13 @@ function delay<T>(v: T, ms = 180): Promise<T> {
 
 export const mockApi: VerityAPI = {
   async resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult> {
-    // Deterministic demo decomposition: rule-matched sentences become on-chain
-    // groups, ~1 in 6 become "eligible" groups (canonical = the sentence), the
-    // rest are fluff. Sentences sharing the same first-8-words merge into one
-    // group so the multi-sentence group UX is demoable.
+    // Deterministic demo matching: rule-matched sentences become on-chain
+    // groups (canonical = the sentence), the rest are fluff. Sentences sharing
+    // the same first-8-words merge into one group so the multi-sentence group
+    // UX is demoable.
     const groups = new Map<string, ClaimGroup>();
     const fluff: string[] = [];
-    const sentences = req.paragraphs.flatMap((p) => p.sentences);
+    const sentences = req.sentences;
     for (const s of sentences) {
       const rule = RULES.find((r) => r.re.test(s.text));
       const eligible = !rule && hash(s.sentenceId) % 6 === 0 && s.text.length > 60;

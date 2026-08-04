@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { tokens } from "../shared/tokens";
+import { env } from "../shared/env";
 
 /**
  * Toolbar popup: a global on/off switch for the overlay.
@@ -45,6 +46,22 @@ export function Popup() {
           >
             {enabled ? "On" : "Off"}
           </button>
+        </Row>
+
+        <Row label="Portfolio">
+          <a
+            href={env.portfolioUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: tokens.brand,
+              textDecoration: "none",
+            }}
+          >
+            Open →
+          </a>
         </Row>
 
         <div style={{ marginTop: 14, fontSize: 12, color: tokens.muted, lineHeight: 1.5 }}>

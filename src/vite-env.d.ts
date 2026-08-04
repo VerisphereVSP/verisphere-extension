@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_RPC_URL?: string;
   readonly VITE_CHAIN_ID?: string;
   readonly VITE_BUY_VSP_URL?: string;
+  readonly VITE_PORTFOLIO_URL?: string;
   readonly VITE_MIN_AVAX_FOR_GAS?: string;
 }
 

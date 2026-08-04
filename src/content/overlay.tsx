@@ -5,6 +5,7 @@ import { HoverCard } from "./components/HoverCard";
 import { SidePanel } from "./components/SidePanel";
 import { Launcher } from "./components/Launcher";
 import { expandToSentenceRange } from "./sentenceSelection";
+import { claimFragmentSpan } from "./claimFragment";
 import { tokens } from "../shared/tokens";
 import type { ClaimGroup } from "../shared/types";
 
@@ -12,6 +13,9 @@ interface SelPos {
   el: HTMLElement;
   start: number;
   end: number;
+  /** The literal (un-snapped) selection offsets — disambiguate multi-claim sentences. */
+  rawStart: number;
+  rawEnd: number;
 }
 
 /** Root React app living in the shadow root: launcher + hover card + panel. */
@@ -78,7 +82,9 @@ export function Overlay() {
       // Snap the selection out to whole sentences for the claim text + position.
       const exp = expandToSentenceRange(s);
       const text = exp?.text ?? raw;
-      const pos = exp ? { el: exp.el, start: exp.start, end: exp.end } : null;
+      const pos = exp
+        ? { el: exp.el, start: exp.start, end: exp.end, rawStart: exp.rawStart, rawEnd: exp.rawEnd }
+        : null;
       let rect = s.getRangeAt(0).getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) {
         const el = anchor.nodeType === 1 ? (anchor as Element) : anchor.parentElement;
@@ -176,7 +182,27 @@ export function Overlay() {
       }
       if (!base) return null;
       const ids = new Set(overlapped.map((r) => r.sentenceId));
-      const candidates = [...groups.values()].filter((g) => g.sentenceIds.some((sid) => ids.has(sid)));
+      let candidates = [...groups.values()].filter((g) => g.sentenceIds.some((sid) => ids.has(sid)));
+
+      // Snap to the CLAIM, not the sentence: locate each candidate's fragment
+      // within the base sentence and keep only those the literal selection
+      // touches. One survivor routes directly (no chooser). If fragments can't
+      // be located, or the selection spans several, keep everything and choose.
+      if (candidates.length > 1) {
+        const rawSentence = (base.el.textContent ?? "").slice(base.start, base.end);
+        const touched = candidates.filter((g) => {
+          const siblings = candidates
+            .filter((o) => o.groupId !== g.groupId)
+            .map((o) => o.canonicalText);
+          const span = claimFragmentSpan(rawSentence, g.canonicalText, siblings);
+          if (!span) return true; // unlocatable — keep as a candidate
+          const fragStart = base!.start + span[0];
+          const fragEnd = base!.start + span[1];
+          return Math.min(fragEnd, pos.rawEnd) - Math.max(fragStart, pos.rawStart) > 0;
+        });
+        if (touched.length > 0) candidates = touched;
+      }
+
       candidates.sort((a, b) => selectionAffinity(raw, b.canonicalText) - selectionAffinity(raw, a.canonicalText));
       return candidates.length > 0 ? { candidates, base } : null;
     };
@@ -249,17 +275,22 @@ export function Overlay() {
           onClick={() => {
             // Open a list of every claim found on the page so far.
             const onChain = [...groups.values()].filter((g) => g.status !== "eligible");
+            const id = `sel-${Date.now()}`;
             if (onChain.length === 0) {
-              toastMsg(
-                pageStatus.loading
-                  ? "Still analyzing this article — one moment…"
-                  : pageStatus.error
-                  ? `Analysis failed: ${pageStatus.error}`
-                  : "No claims here yet — select any sentence to create one.",
-              );
+              // Nothing to list yet — open the panel with a prompt rather than a
+              // transient toast, so the guidance stays visible.
+              records.set(id, {
+                sentenceId: id,
+                text: "",
+                status: "eligible",
+                emptyNotice: true,
+                el: document.body,
+                start: 0,
+                end: 0,
+              });
+              setPanelId(id);
               return;
             }
-            const id = `sel-${Date.now()}`;
             records.set(id, {
               sentenceId: id,
               text: "",

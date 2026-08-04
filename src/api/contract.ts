@@ -9,8 +9,8 @@ import type {
 /**
  * VerityAPI — the contract for Verity's backends. Claim reads/writes map onto
  * the app's endpoints (`/api/claims/*`, `/relay`, `/token/balance`);
- * `resolveArticle` is the verity-api gateway's canonical decomposition
- * (article → claim groups + fluff, matched on-chain).
+ * `resolveArticle` is the verity-api gateway's claim matcher (article sentences
+ * + salient phrases → on-chain claim groups located in our own claim corpus).
  *
  * NOTE: claim *validation* checks do not live here — they are split by source
  * (local heuristics, app moderation/dedup, and the verity-api atomicity service)
@@ -18,10 +18,9 @@ import type {
  */
 export interface VerityAPI {
   /**
-   * Decompose a batch of paragraphs into canonical claim groups and resolve
-   * them against the chain (verity-api: LLM decomposition + match-batch +
-   * summaries). Called lazily as paragraphs scroll into view; groups merge
-   * across batches by content-hash groupId.
+   * Locate on-chain claims in a batch of article sentences (verity-api: phrase
+   * candidate lookup + local pgvector search + summaries). Called lazily as
+   * sentences scroll into view; groups merge across batches by group id.
    */
   resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult>;
 

@@ -19,6 +19,8 @@ export const env = {
   apiMode: (import.meta.env.VITE_API_MODE ?? "mock") as "mock" | "http",
   /** Where "Buy VSP" sends users when their wallet has none. */
   buyVspUrl: import.meta.env.VITE_BUY_VSP_URL ?? "https://test.verisphere.co",
+  /** The app's portfolio page — the user's stakes and earnings (opens in a new tab). */
+  portfolioUrl: import.meta.env.VITE_PORTFOLIO_URL ?? "https://test.verisphere.co/portfolio",
   /** Minimum AVAX (human units) to consider a wallet able to self-pay gas. */
   minAvaxForGas: Number(import.meta.env.VITE_MIN_AVAX_FOR_GAS ?? 0.01),
 } as const;

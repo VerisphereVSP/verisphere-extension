@@ -1,9 +1,10 @@
 import { createRoot } from "react-dom/client";
 import { api } from "../api";
 import { extractSentences } from "./sentences";
+import { extractPhrases } from "./phrases";
 import { injectMarkStyles, paint } from "./highlighter";
 import { groups, hooks, page, pageStatus, records, type SentenceRecord } from "./store";
-import type { ArticleResolveResult, ParagraphInput } from "../shared/types";
+import type { ArticleResolveResult } from "../shared/types";
 import { wallet } from "../wallet/wallet";
 import { Overlay } from "./overlay";
 import { tokens } from "../shared/tokens";
@@ -11,13 +12,13 @@ import { tokens } from "../shared/tokens";
 /**
  * Content-script entry. Runs on Wikipedia article pages.
  *
- * Resolution is LAZY and paragraph-batched: we extract every sentence up
- * front (cheap, local), then analyze paragraphs as they scroll into view —
- * an IntersectionObserver queues visible paragraphs and a settle debounce
- * flushes them to the gateway, which caches decomposition per paragraph
- * (viewport-independent, shared by all users of a revision). Marks paint
- * additively as batches resolve; claim groups merge across batches because
- * groupIds are content hashes of the canonical text.
+ * Matching is LAZY and paragraph-batched: we extract every sentence up front
+ * (cheap, local) plus a set of salient phrases (title, wikilinks, headings),
+ * then locate on-chain claims in paragraphs as they scroll into view — an
+ * IntersectionObserver queues visible paragraphs and a settle debounce flushes
+ * their sentences to the gateway, which looks up candidate claims by phrase and
+ * locates them with a local vector search. Marks paint additively as batches
+ * resolve; groups merge across batches by group id.
  */
 
 interface Paragraph {
@@ -28,10 +29,13 @@ interface Paragraph {
 }
 
 // Wait for the viewport to stop moving before flushing. Generous on purpose:
-// slow scrolling would otherwise fire a request per paragraph and trip the
-// LLM provider's tokens-per-minute limit.
+// scrolling straight through the article would otherwise analyze every
+// paragraph it passes (wasted LLM spend) instead of only where the reader
+// settles.
 const SETTLE_MS = 1000;
-const MAX_BATCH_SENTENCES = 80; // keep each gateway request snappy
+// Smaller batches return (and paint) sooner, so claims appear progressively
+// instead of the whole viewport blocking on its slowest paragraph.
+const MAX_BATCH_SENTENCES = 40;
 
 async function boot() {
   // Honor the popup on/off toggle.
@@ -53,6 +57,11 @@ async function boot() {
   console.log(`[Verity] extracted ${raw.length} sentences`);
   if (raw.length === 0) return;
 
+  // Salient phrases (title, wikilink anchors, headings) — computed once and
+  // sent with every batch so the gateway can look up candidate claims.
+  const phrases = extractPhrases();
+  console.log(`[Verity] extracted ${phrases.length} salient phrases`);
+
   // Group sentences by paragraph — the lazy-load + server-cache unit.
   const paragraphs: Paragraph[] = [];
   const byEl = new Map<HTMLElement, Paragraph>();
@@ -65,7 +74,6 @@ async function boot() {
     }
     p.sentences.push(s);
   }
-  const orderOf = new Map(paragraphs.map((p, i) => [p, i]));
   const revisionId = extractRevisionId();
 
   let inflight = 0;
@@ -73,12 +81,6 @@ async function boot() {
     pageStatus.loading = inflight > 0;
     pageStatus.error = error;
     document.dispatchEvent(new CustomEvent("verity:ready"));
-  }
-
-  /** Last sentences of the preceding paragraph — pronoun-resolution context. */
-  function contextFor(p: Paragraph): string[] {
-    const prev = paragraphs[(orderOf.get(p) ?? 0) - 1];
-    return prev ? prev.sentences.slice(-2).map((s) => s.text) : [];
   }
 
   // Per-paragraph in-flight promises so the on-demand path can await a batch
@@ -97,16 +99,13 @@ async function boot() {
     inflight++;
     setStatus(null);
     try {
-      const payload: ParagraphInput[] = batch.map((p) => ({
-        paragraphId: p.paragraphId,
-        context: contextFor(p),
-        sentences: p.sentences.map((s) => ({ sentenceId: s.sentenceId, text: s.text })),
-      }));
+      const sentences = batch.flatMap((p) => p.sentences.map((s) => ({ sentenceId: s.sentenceId, text: s.text })));
       const res = await api.resolveArticle({
         url: page.url,
         title: page.title.replace(/ - Wikipedia$/, ""),
         revisionId,
-        paragraphs: payload,
+        phrases,
+        sentences,
       });
       ingest(res, batch);
       batch.forEach((p) => {
@@ -125,7 +124,7 @@ async function boot() {
     }
   }
 
-  /** Merge a batch's groups into the store and paint its sentences. */
+  /** Merge a batch's matched claims into the store and paint its sentences. */
   function ingest(res: ArticleResolveResult, batch: Paragraph[]) {
     for (const g of res.groups) {
       const existing = groups.get(g.groupId);
@@ -144,14 +143,10 @@ async function boot() {
       }
     }
 
-    // One group per sentence for painting; prefer one that's on-chain.
+    // Each sentence maps to at most one matched claim; unmatched = fluff.
     const groupBySentence = new Map<string, string>();
     for (const g of res.groups) {
-      for (const id of g.sentenceIds) {
-        const cur = groupBySentence.get(id);
-        const curOnChain = cur ? groups.get(cur)?.status !== "eligible" : false;
-        if (!cur || (!curOnChain && g.status !== "eligible")) groupBySentence.set(id, g.groupId);
-      }
+      for (const id of g.sentenceIds) groupBySentence.set(id, g.groupId);
     }
 
     const recs: SentenceRecord[] = [];
@@ -159,11 +154,20 @@ async function boot() {
       for (const s of p.sentences) {
         const gid = groupBySentence.get(s.sentenceId);
         const g = gid ? groups.get(gid) : undefined;
-        recs.push(
-          g
-            ? { ...s, status: g.status, claim: g.claim, matchScore: g.matchScore, groupId: g.groupId, canonicalText: g.canonicalText }
-            : { ...s, status: "none" }, // fluff
-        );
+        if (!g) {
+          recs.push({ ...s, status: "none" }); // no matching claim
+          continue;
+        }
+        // One claim per sentence: a matched sentence points to its claim and
+        // underlines in full.
+        recs.push({
+          ...s,
+          status: g.status,
+          claim: g.claim,
+          matchScore: g.matchScore,
+          groupId: g.groupId,
+          canonicalText: g.canonicalText,
+        });
       }
     }
     for (const rec of recs) records.set(rec.sentenceId, rec);
@@ -202,8 +206,11 @@ async function boot() {
       if (settleTimer) clearTimeout(settleTimer);
       settleTimer = setTimeout(flush, SETTLE_MS);
     },
-    // Prefetch the paragraph just below the fold before the reader reaches it.
-    { rootMargin: "600px 0px" },
+    // Modest prefetch below the fold. A large margin pulls the whole first
+    // screen-plus into the very first batch, delaying first paint; keep it
+    // tight so the visible paragraphs analyze first, then the next ones as
+    // they approach.
+    { rootMargin: "200px 0px" },
   );
   paragraphs.forEach((p) => io.observe(p.el));
 
