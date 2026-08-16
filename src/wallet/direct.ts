@@ -3,25 +3,31 @@ import { bgFetch } from "../api/bgFetch";
 import { wallet } from "./wallet";
 import { providerRequest } from "./bridge";
 import { ensureCorrectChain } from "./network";
+import { getRelayConfig } from "./relayConfig";
+import { verifyBuiltTx, type BuildAction, type BuildParams } from "./verifyBuild";
 import { setWriteStage } from "./progress";
 
 /**
  * Direct-submit write path for wallets that hold AVAX: the user pays their own
  * gas via eth_sendTransaction (no relay, no relay fee, no permits). We still
  * need a token allowance for the spender, so we approve (max, one-time) first
- * when it's insufficient. Calldata comes from the gateway (/relay/build).
+ * when it's insufficient. Calldata comes from the app (/relay/build).
  */
 
-const gw = env.verityApiUrl; // value-add: calldata build
-const appBase = env.appApiBase; // passthrough: allowance
+const appBase = env.appApiBase; // calldata build, allowance
 
-async function build(action: string, params: Record<string, unknown>): Promise<{ to: string; data: string }> {
-  const res = await bgFetch<{ to: string; data: string }>(`${gw}/relay/build`, {
+async function build(action: BuildAction, params: BuildParams): Promise<{ to: string; data: string }> {
+  const res = await bgFetch<{ to: string; data: string }>(`${appBase}/relay/build`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...params }),
   });
   if (!res.ok || !res.json) throw new Error(res.error ?? "Failed to build transaction");
+  // Never sign server bytes blind — decode them and check every field against
+  // what the user asked for. Especially load-bearing here: ensureAllowance
+  // approves the returned `to`, so an unverified `to` would control both the
+  // tx destination and the token approval.
+  verifyBuiltTx(action, res.json, await getRelayConfig(), params);
   return res.json;
 }
 

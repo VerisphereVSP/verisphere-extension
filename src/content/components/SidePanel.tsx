@@ -19,8 +19,18 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const [claim, setClaim] = useState<Claim | undefined>(rec?.claim);
   const [edges, setEdges] = useState<{ incoming: Edge[]; outgoing: Edge[] }>({ incoming: [], outgoing: [] });
   const [menuOpen, setMenuOpen] = useState(false);
-  const isCreate = rec?.status === "eligible" && !claim && !rec?.emptyNotice;
+  const isCreate = rec?.status === "eligible" && !claim && !rec?.listAll;
   const intent = createIntents.get(sentenceId);
+
+  // Lazy paragraph batches keep resolving while the panel is open. `groups` and
+  // `pageStatus` are plain module state, so re-render on each batch to keep the
+  // page list and the header progress dots current.
+  const [, bumpBatch] = useState(0);
+  useEffect(() => {
+    const onBatch = () => bumpBatch((n) => n + 1);
+    document.addEventListener("verity:ready", onBatch);
+    return () => document.removeEventListener("verity:ready", onBatch);
+  }, []);
 
   useEffect(() => {
     if (claim) api.getEdges(claim.postId).then(setEdges).catch(() => {});
@@ -134,9 +144,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       </div>
 
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-        {rec.emptyNotice ? (
-          <EmptyPrompt />
-        ) : rec.choices && rec.choices.length > 0 ? (
+        {rec.listAll || (rec.choices && rec.choices.length > 0) ? (
           <ClaimChooser rec={rec} />
         ) : isCreate ? (
           <>
@@ -234,13 +242,21 @@ function EmptyPrompt() {
 
 /**
  * A list of claims to pick from. Two modes:
- *  - selection chooser: the selection touched several claims (best match first)
- *  - page list (listAll): every claim found on the page, via the launcher
+ *  - selection chooser: the selection touched several claims (best match first),
+ *    a fixed set captured when the selection resolved
+ *  - page list (listAll): every on-chain claim found on the page, read live from
+ *    `groups` so claims from later lazy batches join the list as you scroll
  */
 function ClaimChooser({ rec }: { rec: SentenceRecord }) {
-  const choices = (rec.choices ?? [])
-    .map((gid) => groups.get(gid))
-    .filter((g): g is NonNullable<typeof g> => !!g);
+  const choices = rec.listAll
+    ? [...groups.values()].filter((g) => g.status !== "eligible")
+    : (rec.choices ?? [])
+        .map((gid) => groups.get(gid))
+        .filter((g): g is NonNullable<typeof g> => !!g);
+
+  // Nothing on-chain here yet — guide the user to select text instead. Analysis
+  // may still be running, so this can flip to a list without reopening.
+  if (rec.listAll && choices.length === 0) return <EmptyPrompt />;
 
   function pick(g: (typeof choices)[number]) {
     // Same synthetic-record routing the overlay uses: the new record carries

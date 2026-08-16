@@ -22,7 +22,7 @@ function NetChip({ support, challenge, active }: { support: number; challenge: n
         fontSize: 13, fontWeight: 700, color,
       }}
     >
-      {sign}{fmtVsp(net)} VSP net
+      {sign}{fmtVsp(net)} VSP
     </span>
   );
 }

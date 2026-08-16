@@ -1,13 +1,14 @@
 import { env } from "../shared/env";
 import { bgFetch } from "../api/bgFetch";
 import { wallet } from "./wallet";
-import { getRelayConfig, type RelayConfig } from "./gatewayConfig";
+import { getRelayConfig, type RelayConfig } from "./relayConfig";
+import { verifyBuiltTx, type BuildAction, type BuildParams } from "./verifyBuild";
 import { setWriteStage } from "./progress";
 
 /**
- * Gasless write path (relay mode: VSP but no AVAX). The gateway builds the
- * calldata + supplies EIP-712 domains; the wallet signs. Because the user has
- * no AVAX to send an approve tx, allowances are granted via EIP-2612 **permit
+ * Gasless write path (relay mode: VSP but no AVAX). The app builds the calldata
+ * + supplies EIP-712 domains; the wallet signs. Because the user has no AVAX to
+ * send an approve tx, allowances are granted via EIP-2612 **permit
  * signatures** that the relay executes before the action:
  *   - posting/stake permit (spender = StakeEngine/PostRegistry)  → `permit`
  *   - fee permit (spender = Forwarder, for the relay fee)         → `fee_permit`
@@ -15,20 +16,23 @@ import { setWriteStage } from "./progress";
  * sequential in that order.
  */
 
-const gw = env.verityApiUrl; // value-add: relay config + calldata build
-const appBase = env.appApiBase; // passthrough: allowance, nonces, submit
+const appBase = env.appApiBase; // calldata build, allowance, nonces, submit
 
 async function getConfig(): Promise<RelayConfig> {
   return getRelayConfig();
 }
 
-async function buildTx(action: string, params: Record<string, unknown>): Promise<{ to: string; data: string; permitValueWei: string }> {
-  const res = await bgFetch<{ to: string; data: string; permitValueWei: string }>(`${gw}/relay/build`, {
+async function buildTx(action: BuildAction, params: BuildParams): Promise<{ to: string; data: string; permitValueWei: string }> {
+  const res = await bgFetch<{ to: string; data: string; permitValueWei: string }>(`${appBase}/relay/build`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...params }),
   });
   if (!res.ok || !res.json) throw new Error(res.error ?? "Failed to build transaction");
+  // Never sign server bytes blind — decode them and check every field against
+  // what the user asked for. The permit is later signed for spender=to and
+  // value=permitValueWei, so this also bounds what a bad backend could permit.
+  verifyBuiltTx(action, res.json, await getConfig(), params);
   return res.json;
 }
 

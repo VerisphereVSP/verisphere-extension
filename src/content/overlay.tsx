@@ -273,29 +273,14 @@ export function Overlay() {
           count={stats.mapped}
           loading={pageStatus.loading}
           onClick={() => {
-            // Open a list of every claim found on the page so far.
-            const onChain = [...groups.values()].filter((g) => g.status !== "eligible");
+            // Open the page list. It resolves its claims from the store on every
+            // render rather than snapshotting them here, so paragraphs analyzed
+            // later (lazy scroll batches) appear without reopening the panel.
             const id = `sel-${Date.now()}`;
-            if (onChain.length === 0) {
-              // Nothing to list yet — open the panel with a prompt rather than a
-              // transient toast, so the guidance stays visible.
-              records.set(id, {
-                sentenceId: id,
-                text: "",
-                status: "eligible",
-                emptyNotice: true,
-                el: document.body,
-                start: 0,
-                end: 0,
-              });
-              setPanelId(id);
-              return;
-            }
             records.set(id, {
               sentenceId: id,
               text: "",
               status: "eligible",
-              choices: onChain.map((g) => g.groupId),
               listAll: true,
               el: document.body,
               start: 0,

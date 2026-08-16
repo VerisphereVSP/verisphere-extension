@@ -23,17 +23,17 @@ export interface SentenceRecord extends SentenceMatch {
   /** Selection touched only fluff — panel shows the no-claim empty state. */
   fluffNotice?: boolean;
   /**
-   * Launcher opened with no on-chain claims on the page — the panel shows a
-   * "select a claim to begin" prompt instead of any claim/create UI.
-   */
-  emptyNotice?: boolean;
-  /**
    * Selection touched several claims — groupIds to choose between (best
    * selection-affinity first). The panel renders a chooser instead of
    * create/stake until one is picked.
    */
   choices?: string[];
-  /** The `choices` are ALL of the page's claims (launcher list view). */
+  /**
+   * Launcher list view: the panel lists ALL of the page's on-chain claims.
+   * Deliberately not a `choices` snapshot — the list is read from `groups` on
+   * every render so lazily analyzed paragraphs extend it live (and an empty
+   * list shows the "select a claim to begin" prompt).
+   */
   listAll?: boolean;
 }
 

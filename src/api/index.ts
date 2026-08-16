@@ -11,8 +11,8 @@ import { env } from "../shared/env";
  *   VITE_API_MODE=mock  → fully self-contained demo (default)
  *
  * Validation checks are NOT part of this adapter — see `api/checks.ts`
- * (moderation + dedup via app, atomicity via verity-api) and
- * `shared/claimChecks.ts` (local).
+ * (moderation, dedup and atomicity via the app) and `shared/claimChecks.ts`
+ * (local).
  */
 export const api: VerityAPI = env.apiMode === "http" ? httpApi : mockApi;
 

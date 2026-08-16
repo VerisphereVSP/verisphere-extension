@@ -4,7 +4,7 @@
  * Runs in the extension's own privileged origin. Its main job is to proxy the
  * validation-check fetches for the content script: a fetch made here uses the
  * extension's host_permissions and is NOT subject to page CORS/preflight, so
- * POSTs to the app / verity-api work without those servers configuring CORS.
+ * POSTs to the app work without it configuring CORS for the page.
  *
  * The target host MUST be listed in `host_permissions` (see manifest.ts).
  */

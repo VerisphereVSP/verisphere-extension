@@ -39,15 +39,13 @@ export default defineManifest({
       world: "MAIN",
     },
   ],
-  // Pages the overlay runs on, plus the backends it calls (app API + verity-api).
-  // Includes both local dev and prod hosts so a single build works per env;
-  // replace the *.verisphere.example placeholders with your real domains.
+  // Pages the overlay runs on, plus the app API it calls. Includes both local
+  // dev and prod hosts so a single build works per env; replace the
+  // *.verisphere.example placeholder with your real domain.
   host_permissions: [
     "*://*.wikipedia.org/*",
     "http://localhost:8070/*",
-    "http://localhost:8790/*",
     "https://api.verisphere.example/*",
-    "https://verity-api.verisphere.example/*",
     "https://verisphere.co/api/*",
     "https://test.verisphere.co/api/*",
     "https://api.avax-test.network/*",

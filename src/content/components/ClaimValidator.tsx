@@ -18,7 +18,7 @@ import { Dots } from "./Dots";
  * on its own row (green/yellow/red, with a spinner while pending):
  *   - Coherent & complete  → LOCAL (instant)
  *   - Objectively checkable → LOCAL (instant)
- *   - Single assertion      → verity-api (LLM)
+ *   - Single assertion      → app /api/claims/atomicity (LLM)
  *   - Allowed content       → app /api/moderate
  *   - Not a duplicate       → app /api/claims/check-*
  *

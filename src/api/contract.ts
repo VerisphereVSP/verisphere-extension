@@ -7,20 +7,20 @@ import type {
 } from "../shared/types";
 
 /**
- * VerityAPI — the contract for Verity's backends. Claim reads/writes map onto
- * the app's endpoints (`/api/claims/*`, `/relay`, `/token/balance`);
- * `resolveArticle` is the verity-api gateway's claim matcher (article sentences
- * + salient phrases → on-chain claim groups located in our own claim corpus).
+ * VerityAPI — the contract for Verity's backend. Everything maps onto the app's
+ * endpoints (`/api/claims/*`, `/relay`, `/token/balance`), including
+ * `resolveArticle`, the claim matcher (article sentences + salient phrases →
+ * on-chain claim groups located in the app's claim corpus).
  *
  * NOTE: claim *validation* checks do not live here — they are split by source
- * (local heuristics, app moderation/dedup, and the verity-api atomicity service)
- * and orchestrated in `api/checks.ts` + `shared/claimChecks.ts`.
+ * (local heuristics, and the app's moderation/dedup/atomicity endpoints) and
+ * orchestrated in `api/checks.ts` + `shared/claimChecks.ts`.
  */
 export interface VerityAPI {
   /**
-   * Locate on-chain claims in a batch of article sentences (verity-api: phrase
-   * candidate lookup + local pgvector search + summaries). Called lazily as
-   * sentences scroll into view; groups merge across batches by group id.
+   * Locate on-chain claims in a batch of article sentences (phrase candidate
+   * lookup + lexical/pgvector match + summaries). Called lazily as sentences
+   * scroll into view; groups merge across batches by group id.
    */
   resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult>;
 
