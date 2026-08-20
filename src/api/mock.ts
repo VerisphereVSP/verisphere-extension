@@ -1,4 +1,4 @@
-import type { VerityAPI } from "./contract";
+import type { VeriSphereAPI } from "./contract";
 import type {
   ArticleResolveRequest,
   ArticleResolveResult,
@@ -49,7 +49,7 @@ function delay<T>(v: T, ms = 180): Promise<T> {
   return new Promise((r) => setTimeout(() => r(v), ms));
 }
 
-export const mockApi: VerityAPI = {
+export const mockApi: VeriSphereAPI = {
   async resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult> {
     // Deterministic demo matching: rule-matched sentences become on-chain
     // groups (canonical = the sentence), the rest are fluff. Sentences sharing

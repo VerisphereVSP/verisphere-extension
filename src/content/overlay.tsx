@@ -53,16 +53,16 @@ export function Overlay() {
       }),
     ];
     const ready = () => force((n) => n + 1);
-    document.addEventListener("verity:ready", ready);
+    document.addEventListener("verisphere:ready", ready);
     const toastHandler = (e: Event) => {
       setToast((e as CustomEvent).detail?.msg ?? null);
       setTimeout(() => setToast(null), 2600);
     };
-    document.addEventListener("verity:toast", toastHandler);
+    document.addEventListener("verisphere:toast", toastHandler);
     return () => {
       offs.forEach((o) => o());
-      document.removeEventListener("verity:ready", ready);
-      document.removeEventListener("verity:toast", toastHandler);
+      document.removeEventListener("verisphere:ready", ready);
+      document.removeEventListener("verisphere:toast", toastHandler);
     };
   }, []);
 
@@ -77,7 +77,7 @@ export function Overlay() {
       const raw = s.toString().replace(/\s+/g, " ").trim();
       const anchor = s.anchorNode;
       // Ignore selections inside our own overlay (e.g. the validator textarea).
-      const host = document.getElementById("verity-root");
+      const host = document.getElementById("verisphere-root");
       if (raw.length < 8 || !anchor || (host && host.contains(anchor))) return null;
       // Snap the selection out to whole sentences for the claim text + position.
       const exp = expandToSentenceRange(s);
@@ -97,7 +97,7 @@ export function Overlay() {
       // Ignore interactions inside our own UI (e.g. clicking Connect / buttons
       // in the side panel) — otherwise a leftover page selection would spawn a
       // new create panel on every click.
-      const host = document.getElementById("verity-root");
+      const host = document.getElementById("verisphere-root");
       if (host && e.target && host.contains(e.target as Node)) return;
       const q = qualify();
       if (!q) return;
@@ -273,29 +273,14 @@ export function Overlay() {
           count={stats.mapped}
           loading={pageStatus.loading}
           onClick={() => {
-            // Open a list of every claim found on the page so far.
-            const onChain = [...groups.values()].filter((g) => g.status !== "eligible");
+            // Open the page list. It resolves its claims from the store on every
+            // render rather than snapshotting them here, so paragraphs analyzed
+            // later (lazy scroll batches) appear without reopening the panel.
             const id = `sel-${Date.now()}`;
-            if (onChain.length === 0) {
-              // Nothing to list yet — open the panel with a prompt rather than a
-              // transient toast, so the guidance stays visible.
-              records.set(id, {
-                sentenceId: id,
-                text: "",
-                status: "eligible",
-                emptyNotice: true,
-                el: document.body,
-                start: 0,
-                end: 0,
-              });
-              setPanelId(id);
-              return;
-            }
             records.set(id, {
               sentenceId: id,
               text: "",
               status: "eligible",
-              choices: onChain.map((g) => g.groupId),
               listAll: true,
               el: document.body,
               start: 0,
@@ -377,7 +362,7 @@ export function Overlay() {
 }
 
 function toastMsg(msg: string) {
-  document.dispatchEvent(new CustomEvent("verity:toast", { detail: { msg } }));
+  document.dispatchEvent(new CustomEvent("verisphere:toast", { detail: { msg } }));
 }
 
 /**

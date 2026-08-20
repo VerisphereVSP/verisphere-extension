@@ -5,17 +5,12 @@
  * `evs` is the effective Verity Score expressed on a [-100, +100] scale
  * (−100 = fully challenged, 0 = contested/neutral, +100 = fully supported).
  */
-export function evsToBackground(evs?: number): string {
-  if (evs === undefined || Number.isNaN(evs)) return "#ffffff";
-  const v = Math.max(-100, Math.min(100, evs)) / 100;
-  const red = v < 0 ? 255 : Math.round(255 * (1 - v));
-  const green = v > 0 ? 255 : Math.round(255 * (1 + v));
-  const blue = 255;
-  return `rgb(${red}, ${green}, ${blue})`;
-}
-
-/** Underline tint for an in-page claim mark (a saturated take on the VS color). */
-export function evsToUnderline(evs?: number): string {
+/**
+ * The score color: green when supported, red when challenged, gray when
+ * contested or unscored. Shared by in-page underlines, the superscript score
+ * badge and the score chips so one claim reads as one color everywhere.
+ */
+export function evsToColor(evs?: number): string {
   if (evs === undefined || Number.isNaN(evs)) return "#9ca3af";
   const v = Math.max(-100, Math.min(100, evs)) / 100;
   if (v > 0.05) return "#16a34a";

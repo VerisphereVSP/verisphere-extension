@@ -1,9 +1,13 @@
-import { evsToBackground, evsLabel } from "../../shared/vsColor";
+import { evsToColor, evsLabel } from "../../shared/vsColor";
 import { tokens } from "../../shared/tokens";
 
-/** A compact Verity Score chip. */
+/**
+ * A compact Verity Score chip. Filled with the same solid score color as the
+ * in-page superscript badge, so a claim looks the same in the text and in the
+ * panel.
+ */
 export function VSChip({ evs, active = true }: { evs?: number; active?: boolean }) {
-  const bg = active ? evsToBackground(evs) : "#f3f4f6";
+  const scored = active && evs !== undefined && !Number.isNaN(evs);
   return (
     <span
       style={{
@@ -12,11 +16,11 @@ export function VSChip({ evs, active = true }: { evs?: number; active?: boolean 
         gap: 6,
         padding: "2px 8px",
         borderRadius: 999,
-        border: `1px solid ${tokens.line}`,
-        background: bg,
+        border: `1px solid ${scored ? "transparent" : tokens.line}`,
+        background: scored ? evsToColor(evs) : "#f3f4f6",
         fontSize: 12,
         fontWeight: 600,
-        color: tokens.ink,
+        color: scored ? "#fff" : tokens.muted,
         whiteSpace: "nowrap",
       }}
     >

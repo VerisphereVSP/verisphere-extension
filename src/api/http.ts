@@ -1,17 +1,17 @@
-import type { VerityAPI } from "./contract";
+import type { VeriSphereAPI } from "./contract";
 import type { ArticleResolveRequest, ArticleResolveResult, Claim, ClaimGroup, Edge, UserStake } from "../shared/types";
 import { env } from "../shared/env";
 import { bgFetch } from "./bgFetch";
 import { writeCreateClaim, writeSetStake } from "../wallet/writer";
 
 /**
- * Real backend adapter (hybrid transport, all via the background worker):
- *   - resolveArticle → verity-api gateway (phrase lookup + local pgvector match)
- *   - claim reads → the app directly (passthrough; preserves the app's per-IP limits)
+ * Real backend adapter — the app API for everything, all via the background
+ * worker (bypasses CORS, and the app sees the real user IP for rate limiting):
+ *   - resolveArticle → /claims/locate (phrase lookup + lexical/pgvector match)
+ *   - claim reads → /claims/... (indexed summaries, plus /live for chain truth)
  *   - writes → wallet/writer (direct-submit or gasless relay by wallet mode)
  */
 
-const gw = env.verityApiUrl;
 const appBase = env.appApiBase;
 
 /** Map the app's snake_case claim summary → the extension's Claim. */
@@ -30,9 +30,9 @@ function toClaim(j: any): Claim {
   };
 }
 
-export const httpApi: VerityAPI = {
+export const httpApi: VeriSphereAPI = {
   async resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult> {
-    const res = await bgFetch<{ groups?: any[]; fluff?: string[]; error?: string }>(`${gw}/article/match`, {
+    const res = await bgFetch<{ groups?: any[]; fluff?: string[]; error?: string }>(`${appBase}/claims/locate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
@@ -93,8 +93,8 @@ export const httpApi: VerityAPI = {
   },
 
   async setStake(postId: number, targetVsp: number): Promise<Claim> {
-    // Snapshot the pre-stake on-chain total so we can tell when the gateway's
-    // RPC node has actually observed our change (see the poll below).
+    // Snapshot the pre-stake on-chain total so we can tell when the app's RPC
+    // node has actually observed our change (see the poll below).
     const before = await liveTotals(postId);
     const prevTotal = before?.total ?? 0;
 
@@ -105,7 +105,7 @@ export const httpApi: VerityAPI = {
     // indexer catches up — that's honest, scoring genuinely hasn't run yet.
     const claim = await httpApi.getClaim(postId).catch(() => minimalClaim(postId, ""));
 
-    // The gateway's RPC node can trail the wallet's by a moment right after the
+    // The app's RPC node can trail the wallet's by a moment right after the
     // receipt, so the first live read may still return the PRE-stake totals —
     // which rendered a just-created+staked claim as "nothing staked / grey"
     // until a reload. Poll briefly until the total reflects the confirmed
@@ -133,14 +133,9 @@ export const httpApi: VerityAPI = {
       if (chk.json?.post_id != null) pid = chk.json.post_id;
     }
     if (pid != null) {
-      // Fire-and-forget: seed the gateway's match cache so this claim's
-      // underline shows on the next page load for everyone — otherwise a
-      // cached "no match" verdict + embedding-indexer lag hide it for minutes.
-      void bgFetch(`${gw}/claim-created`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      // No corpus seeding needed: the app's chain indexer picks up PostCreated
+      // within a poll cycle and embeds the claim, so it becomes matchable (and
+      // underlines for everyone) on its own within seconds.
       try {
         return { claim: await httpApi.getClaim(pid), deduped };
       } catch {
@@ -161,7 +156,7 @@ interface LiveTotals {
   effectiveVs: number | null;
 }
 
-/** Live contract state via the gateway's RPC (never lags the app's indexer). */
+/** Live contract state read straight from the chain (never lags the indexer). */
 async function liveTotals(postId: number): Promise<LiveTotals | null> {
   if (postId < 0) return null;
   const res = await bgFetch<{
@@ -170,7 +165,7 @@ async function liveTotals(postId: number): Promise<LiveTotals | null> {
     active?: boolean;
     base_vs?: number | null;
     effective_vs?: number | null;
-  }>(`${gw}/claims/${postId}/live`);
+  }>(`${appBase}/claims/${postId}/live`);
   if (!res.ok || !res.json) return null;
   const support = res.json.support_vsp ?? 0;
   const challenge = res.json.challenge_vsp ?? 0;

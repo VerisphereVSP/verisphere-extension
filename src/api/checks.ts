@@ -3,10 +3,9 @@ import type { Claim } from "../shared/types";
 import { bgFetch } from "./bgFetch";
 
 /**
- * Remote validation checks (hybrid transport):
- *   - atomicity → verity-api gateway (holds the LLM key)
- *   - moderation + dedup → the app directly (via the worker: CORS-safe + the
- *     app sees the real user IP for its rate limiting)
+ * Remote validation checks — all against the app API, via the background worker
+ * (CORS-safe, and the app sees the real user IP for its rate limiting):
+ *   - atomicity (the app holds the LLM key), moderation, and dedup.
  * Every call fails *soft*: on error it returns `{ ok: false }` so the validator
  * shows "couldn't verify" rather than blocking. No regex fallback for atomicity.
  */
@@ -24,12 +23,12 @@ export interface AtomicityResult {
 export async function checkAtomicity(
   text: string,
 ): Promise<{ ok: true; result: AtomicityResult } | { ok: false; error: string }> {
-  const res = await bgFetch<AtomicityResult>(`${env.verityApiUrl}/atomicity`, {
+  const res = await bgFetch<AtomicityResult>(`${env.appApiBase}/claims/atomicity`, {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify({ text }),
   });
-  if (!res.ok || !res.json) return { ok: false, error: res.error ?? `verity-api ${res.status}` };
+  if (!res.ok || !res.json) return { ok: false, error: res.error ?? `atomicity ${res.status}` };
   return { ok: true, result: res.json };
 }
 

@@ -16,8 +16,8 @@ function ensureListener() {
   listening = true;
   window.addEventListener("message", (event: MessageEvent) => {
     if (event.source !== window) return;
-    const d = event.data as { __verity?: boolean; dir?: string; id?: number; result?: unknown; error?: string; code?: unknown };
-    if (!d || d.__verity !== true || d.dir !== "res" || d.id == null) return;
+    const d = event.data as { __verisphere?: boolean; dir?: string; id?: number; result?: unknown; error?: string; code?: unknown };
+    if (!d || d.__verisphere !== true || d.dir !== "res" || d.id == null) return;
     const p = pending.get(d.id);
     if (!p) return;
     pending.delete(d.id);
@@ -37,7 +37,7 @@ export function providerRequest<T = unknown>(method: string, params: unknown[] =
   const id = ++seq;
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-    window.postMessage({ __verity: true, dir: "req", id, method, params }, "*");
+    window.postMessage({ __verisphere: true, dir: "req", id, method, params }, "*");
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);

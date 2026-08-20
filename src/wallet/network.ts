@@ -1,5 +1,5 @@
 import { providerRequest } from "./bridge";
-import { getRelayConfig } from "./gatewayConfig";
+import { getRelayConfig } from "./relayConfig";
 
 /**
  * Ensure the injected wallet is on the chain this deployment targets (from

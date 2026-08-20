@@ -1,10 +1,10 @@
 /**
  * Runs in the page's MAIN world (where `window.ethereum` lives). Bridges
- * EIP-1193 requests from the Verity content script (ISOLATED world) to the
+ * EIP-1193 requests from the VeriSphere content script (ISOLATED world) to the
  * injected wallet via window.postMessage. Both worlds share `window`, so a
  * posted message is received on the other side.
  *
- * Protocol (all tagged `__verity: true`):
+ * Protocol (all tagged `__verisphere: true`):
  *   req  { dir:"req", id, method, params }   content → page
  *   res  { dir:"res", id, result | error }   page → content
  */
@@ -16,11 +16,11 @@ const getProvider = (): Provider | undefined =>
 
 window.addEventListener("message", async (event: MessageEvent) => {
   if (event.source !== window) return;
-  const d = event.data as { __verity?: boolean; dir?: string; id?: number; method?: string; params?: unknown[] };
-  if (!d || d.__verity !== true || d.dir !== "req") return;
+  const d = event.data as { __verisphere?: boolean; dir?: string; id?: number; method?: string; params?: unknown[] };
+  if (!d || d.__verisphere !== true || d.dir !== "req") return;
 
   const reply = (payload: Record<string, unknown>) =>
-    window.postMessage({ __verity: true, dir: "res", id: d.id, ...payload }, "*");
+    window.postMessage({ __verisphere: true, dir: "res", id: d.id, ...payload }, "*");
 
   const provider = getProvider();
   if (!provider) {

@@ -23,17 +23,17 @@ export interface SentenceRecord extends SentenceMatch {
   /** Selection touched only fluff — panel shows the no-claim empty state. */
   fluffNotice?: boolean;
   /**
-   * Launcher opened with no on-chain claims on the page — the panel shows a
-   * "select a claim to begin" prompt instead of any claim/create UI.
-   */
-  emptyNotice?: boolean;
-  /**
    * Selection touched several claims — groupIds to choose between (best
    * selection-affinity first). The panel renders a chooser instead of
    * create/stake until one is picked.
    */
   choices?: string[];
-  /** The `choices` are ALL of the page's claims (launcher list view). */
+  /**
+   * Launcher list view: the panel lists ALL of the page's on-chain claims.
+   * Deliberately not a `choices` snapshot — the list is read from `groups` on
+   * every render so lazily analyzed paragraphs extend it live (and an empty
+   * list shows the "select a claim to begin" prompt).
+   */
   listAll?: boolean;
 }
 
@@ -88,7 +88,7 @@ export const createIntents = new Map<string, StakeSide>();
 
 export const page = { url: location.href, title: document.title };
 
-/** Simple typed event bus over DOM CustomEvents (namespaced verity:*). */
+/** Simple typed event bus over DOM CustomEvents (namespaced verisphere:*). */
 export type Bus = {
   hover: { sentenceId: string };
   hoverEnd: {};
@@ -97,11 +97,11 @@ export type Bus = {
 };
 
 export function emit<K extends keyof Bus>(type: K, detail: Bus[K]) {
-  document.dispatchEvent(new CustomEvent(`verity:${type}`, { detail }));
+  document.dispatchEvent(new CustomEvent(`verisphere:${type}`, { detail }));
 }
 
 export function on<K extends keyof Bus>(type: K, cb: (d: Bus[K]) => void): () => void {
   const handler = (e: Event) => cb((e as CustomEvent).detail);
-  document.addEventListener(`verity:${type}`, handler);
-  return () => document.removeEventListener(`verity:${type}`, handler);
+  document.addEventListener(`verisphere:${type}`, handler);
+  return () => document.removeEventListener(`verisphere:${type}`, handler);
 }

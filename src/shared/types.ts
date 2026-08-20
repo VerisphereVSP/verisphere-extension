@@ -1,7 +1,7 @@
 /**
- * Shared types for Verity. These mirror the shapes the Verisphere `app`
- * backend already returns (see app README: /api/claims/*), plus a few
- * Verity-specific shapes for the Wikipedia sentence→claim mapping.
+ * Shared types for the VeriSphere extension. These mirror the shapes the
+ * VeriSphere `app` backend already returns (see app README: /api/claims/*),
+ * plus a few extension-specific shapes for the Wikipedia sentence→claim mapping.
  *
  * Since we are building the FE first and the backend "backwards", these types
  * ARE the contract the backend must satisfy.

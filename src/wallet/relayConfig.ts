@@ -21,10 +21,11 @@ export interface RelayConfig {
 
 let _cfg: RelayConfig | null = null;
 
-/** Fetch (and cache) the relay/chain config from the verity-api gateway. */
+/** Fetch (and cache) the signing + chain config from the app. Holds the EIP-712
+ *  domains the wallet must sign against, so we ship no ABIs or addresses. */
 export async function getRelayConfig(): Promise<RelayConfig> {
   if (_cfg) return _cfg;
-  const res = await bgFetch<RelayConfig>(`${env.verityApiUrl}/relay/config`);
+  const res = await bgFetch<RelayConfig>(`${env.appApiBase}/relay/config`);
   if (!res.ok || !res.json) throw new Error(res.error ?? "Relay config unavailable");
   _cfg = res.json;
   return _cfg;

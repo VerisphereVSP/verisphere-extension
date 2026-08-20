@@ -1,4 +1,4 @@
-import { evsToUnderline } from "../shared/vsColor";
+import { evsToColor } from "../shared/vsColor";
 import { tokens } from "../shared/tokens";
 import { emit, records, type SentenceRecord } from "./store";
 
@@ -6,7 +6,7 @@ import { emit, records, type SentenceRecord } from "./store";
  * Paints claim marks directly into the page (light DOM), because a highlight
  * must visually integrate with Wikipedia's text. The interactive chrome (hover
  * card, side panel) lives in a shadow root instead. Marks communicate with the
- * overlay via the verity:* event bus.
+ * overlay via the verisphere:* event bus.
  */
 
 const MARK_ATTR = "data-vr-sentence";
@@ -73,7 +73,7 @@ function classFor(rec: SentenceRecord): string {
 
 /** Wrap the [start,end) character range within rec.el's text nodes. */
 function wrapRange(rec: SentenceRecord) {
-  const color = rec.claim ? evsToUnderline(rec.claim.evs) : tokens.brand;
+  const color = rec.claim ? evsToColor(rec.claim.evs) : tokens.brand;
   const cls = classFor(rec);
   // Underline just this claim's fragment when known (multi-claim sentences);
   // otherwise the whole sentence.
