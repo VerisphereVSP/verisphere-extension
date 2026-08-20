@@ -1,13 +1,13 @@
 /**
- * Verity design tokens.
+ * VeriSphere design tokens.
  *
- * Branded (not Wikipedia-native): a clear Verisphere layer sitting on top of
- * the page. Indigo is the Verity brand accent; support/challenge reuse the
+ * Branded (not Wikipedia-native): a clear VeriSphere layer sitting on top of
+ * the page. Indigo is the VeriSphere brand accent; support/challenge reuse the
  * green/red the web app already uses, and the Verity Score gradient reuses the
  * red<->white<->green scale from `frontend/src/ui/vsColor.ts`.
  */
 export const tokens = {
-  brand: "#4f46e5", // indigo — Verity accent
+  brand: "#4f46e5", // indigo — VeriSphere accent
   brandInk: "#312e81",
   ink: "#111827",
   muted: "#6b7280",

@@ -6,7 +6,7 @@ import { emit, records, type SentenceRecord } from "./store";
  * Paints claim marks directly into the page (light DOM), because a highlight
  * must visually integrate with Wikipedia's text. The interactive chrome (hover
  * card, side panel) lives in a shadow root instead. Marks communicate with the
- * overlay via the verity:* event bus.
+ * overlay via the verisphere:* event bus.
  */
 
 const MARK_ATTR = "data-vr-sentence";

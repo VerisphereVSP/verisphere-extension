@@ -88,7 +88,7 @@ export const createIntents = new Map<string, StakeSide>();
 
 export const page = { url: location.href, title: document.title };
 
-/** Simple typed event bus over DOM CustomEvents (namespaced verity:*). */
+/** Simple typed event bus over DOM CustomEvents (namespaced verisphere:*). */
 export type Bus = {
   hover: { sentenceId: string };
   hoverEnd: {};
@@ -97,11 +97,11 @@ export type Bus = {
 };
 
 export function emit<K extends keyof Bus>(type: K, detail: Bus[K]) {
-  document.dispatchEvent(new CustomEvent(`verity:${type}`, { detail }));
+  document.dispatchEvent(new CustomEvent(`verisphere:${type}`, { detail }));
 }
 
 export function on<K extends keyof Bus>(type: K, cb: (d: Bus[K]) => void): () => void {
   const handler = (e: Event) => cb((e as CustomEvent).detail);
-  document.addEventListener(`verity:${type}`, handler);
-  return () => document.removeEventListener(`verity:${type}`, handler);
+  document.addEventListener(`verisphere:${type}`, handler);
+  return () => document.removeEventListener(`verisphere:${type}`, handler);
 }

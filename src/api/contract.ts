@@ -7,7 +7,7 @@ import type {
 } from "../shared/types";
 
 /**
- * VerityAPI — the contract for Verity's backend. Everything maps onto the app's
+ * VeriSphereAPI — the contract for VeriSphere's backend. Everything maps onto the app's
  * endpoints (`/api/claims/*`, `/relay`, `/token/balance`), including
  * `resolveArticle`, the claim matcher (article sentences + salient phrases →
  * on-chain claim groups located in the app's claim corpus).
@@ -16,7 +16,7 @@ import type {
  * (local heuristics, and the app's moderation/dedup/atomicity endpoints) and
  * orchestrated in `api/checks.ts` + `shared/claimChecks.ts`.
  */
-export interface VerityAPI {
+export interface VeriSphereAPI {
   /**
    * Locate on-chain claims in a batch of article sentences (phrase candidate
    * lookup + lexical/pgvector match + summaries). Called lazily as sentences

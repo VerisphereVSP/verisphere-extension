@@ -1,7 +1,7 @@
 /**
- * Build-time environment config for the Verity extension.
+ * Build-time environment config for the VeriSphere extension.
  *
- * The extension talks to ONE backend: the Verisphere app API. Chain state,
+ * The extension talks to ONE backend: the VeriSphere app API. Chain state,
  * signing config and the LLM key all live there, so the client needs no RPC
  * endpoint, no ABIs and no API keys of its own. Values are inlined from Vite env
  * files (`.env.<mode>`) selected via `--env <name>` (mapped to Vite's `--mode`
@@ -9,7 +9,7 @@
  */
 export const env = {
   /**
-   * Verisphere app API — called via the background worker, which bypasses CORS
+   * VeriSphere app API — called via the background worker, which bypasses CORS
    * and preserves the user's IP for the app's per-IP rate limiting. Serves
    * everything: claim reads, article matching, claim checks, relay signing
    * config + calldata, and transaction submission.

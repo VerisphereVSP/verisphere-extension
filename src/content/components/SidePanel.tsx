@@ -28,8 +28,8 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const [, bumpBatch] = useState(0);
   useEffect(() => {
     const onBatch = () => bumpBatch((n) => n + 1);
-    document.addEventListener("verity:ready", onBatch);
-    return () => document.removeEventListener("verity:ready", onBatch);
+    document.addEventListener("verisphere:ready", onBatch);
+    return () => document.removeEventListener("verisphere:ready", onBatch);
   }, []);
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       <div style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <img src={chrome.runtime.getURL("icons/icon-32.png")} alt="" style={logoImg} />
-          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.01em" }}>Verity</span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.01em" }}>VeriSphere</span>
           {/* Page analysis still running (the launcher pill is hidden while the panel is open). */}
           {pageStatus.loading && <Dots />}
         </div>
@@ -201,7 +201,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       </div>
 
       <div style={foot}>
-        Verity scores are staked market positions, not authoritative fact rulings.
+        VeriSphere scores are staked market positions, not authoritative fact rulings.
       </div>
     </div>
   );

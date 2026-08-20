@@ -1,4 +1,4 @@
-import type { VerityAPI } from "./contract";
+import type { VeriSphereAPI } from "./contract";
 import { mockApi } from "./mock";
 import { httpApi } from "./http";
 import { env } from "../shared/env";
@@ -14,6 +14,6 @@ import { env } from "../shared/env";
  * (moderation, dedup and atomicity via the app) and `shared/claimChecks.ts`
  * (local).
  */
-export const api: VerityAPI = env.apiMode === "http" ? httpApi : mockApi;
+export const api: VeriSphereAPI = env.apiMode === "http" ? httpApi : mockApi;
 
-export type { VerityAPI };
+export type { VeriSphereAPI };

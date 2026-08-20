@@ -22,7 +22,7 @@ export function extractSentences(): Omit<SentenceRecord, "status">[] {
   // legacy, mobile) nest the parser output differently.
   const paras = pickParagraphs();
   if (paras.length === 0) {
-    console.warn("[Verity] extractor found no <p> elements to scan");
+    console.warn("[VeriSphere] extractor found no <p> elements to scan");
     return [];
   }
 
@@ -86,7 +86,7 @@ function pickParagraphs(): HTMLElement[] {
     if (found.length > best.length) best = found;
     if (best.length > 0 && sel !== "p") break; // first non-empty scoped hit wins
   }
-  console.log("[Verity] paragraph selectors:", counts);
+  console.log("[VeriSphere] paragraph selectors:", counts);
   return best;
 }
 

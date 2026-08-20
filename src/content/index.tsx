@@ -41,10 +41,10 @@ async function boot() {
   // Honor the popup on/off toggle.
   const { enabled } = await chrome.storage.local.get("enabled");
   if (enabled === false) {
-    console.log("[Verity] overlay disabled via popup");
+    console.log("[VeriSphere] overlay disabled via popup");
     return;
   }
-  console.log("[Verity] content script loaded on", location.href);
+  console.log("[VeriSphere] content script loaded on", location.href);
   // Mount the overlay unconditionally so the launcher is always a proof of
   // life, even if this page's markup yields no extractable sentences.
   injectMarkStyles();
@@ -54,13 +54,13 @@ async function boot() {
   void wallet.restore();
 
   const raw = extractSentences();
-  console.log(`[Verity] extracted ${raw.length} sentences`);
+  console.log(`[VeriSphere] extracted ${raw.length} sentences`);
   if (raw.length === 0) return;
 
   // Salient phrases (title, wikilink anchors, headings) — computed once and
   // sent with every batch so the gateway can look up candidate claims.
   const phrases = extractPhrases();
-  console.log(`[Verity] extracted ${phrases.length} salient phrases`);
+  console.log(`[VeriSphere] extracted ${phrases.length} salient phrases`);
 
   // Group sentences by paragraph — the lazy-load + server-cache unit.
   const paragraphs: Paragraph[] = [];
@@ -80,7 +80,7 @@ async function boot() {
   function setStatus(error: string | null = pageStatus.error) {
     pageStatus.loading = inflight > 0;
     pageStatus.error = error;
-    document.dispatchEvent(new CustomEvent("verity:ready"));
+    document.dispatchEvent(new CustomEvent("verisphere:ready"));
   }
 
   // Per-paragraph in-flight promises so the on-demand path can await a batch
@@ -115,7 +115,7 @@ async function boot() {
     } catch (e) {
       // Back to idle: the paragraphs re-queue on the next scroll/settle.
       batch.forEach((p) => (p.state = "idle"));
-      console.warn("[Verity] paragraph batch failed:", e);
+      console.warn("[VeriSphere] paragraph batch failed:", e);
       setStatus(e instanceof Error ? e.message : "Analysis failed");
       return;
     } finally {
@@ -235,7 +235,7 @@ function extractRevisionId(): string | null {
 
 function mountOverlay() {
   const host = document.createElement("div");
-  host.id = "verity-root";
+  host.id = "verisphere-root";
   host.style.all = "initial";
   document.documentElement.appendChild(host);
 
