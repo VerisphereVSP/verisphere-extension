@@ -1,4 +1,4 @@
-// Wrapper so the extension takes the same `--env <name>` flag as verity-api.
+// Wrapper so the extension takes a friendly `--env <name>` flag (dev|production).
 // Vite's native selector is `--mode`, so we translate: `--env dev` →
 // `--mode dev`, which drives which `.env.<name>` file Vite loads.
 //

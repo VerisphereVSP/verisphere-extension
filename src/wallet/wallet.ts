@@ -17,7 +17,7 @@ export function writeMode(s: WalletState): WriteMode {
 /**
  * Wallet abstraction.
  *
- * All writes go through the VeriSphere relay as EIP-712 meta-transactions
+ * All writes go through the Verisphere relay as EIP-712 meta-transactions
  * (see protocol/src/hooks/useMetaTx.ts), so the wallet never sends a gas
  * transaction — it only needs the address, balance, and typed-data signing.
  *

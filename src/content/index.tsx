@@ -41,10 +41,10 @@ async function boot() {
   // Honor the popup on/off toggle.
   const { enabled } = await chrome.storage.local.get("enabled");
   if (enabled === false) {
-    console.log("[VeriSphere] overlay disabled via popup");
+    console.log("[Verisphere] overlay disabled via popup");
     return;
   }
-  console.log("[VeriSphere] content script loaded on", location.href);
+  console.log("[Verisphere] content script loaded on", location.href);
   // Mount the overlay unconditionally so the launcher is always a proof of
   // life, even if this page's markup yields no extractable sentences.
   injectMarkStyles();
@@ -54,13 +54,13 @@ async function boot() {
   void wallet.restore();
 
   const raw = extractSentences();
-  console.log(`[VeriSphere] extracted ${raw.length} sentences`);
+  console.log(`[Verisphere] extracted ${raw.length} sentences`);
   if (raw.length === 0) return;
 
   // Salient phrases (title, wikilink anchors, headings) — computed once and
   // sent with every batch so the gateway can look up candidate claims.
   const phrases = extractPhrases();
-  console.log(`[VeriSphere] extracted ${phrases.length} salient phrases`);
+  console.log(`[Verisphere] extracted ${phrases.length} salient phrases`);
 
   // Group sentences by paragraph — the lazy-load + server-cache unit.
   const paragraphs: Paragraph[] = [];
@@ -115,7 +115,7 @@ async function boot() {
     } catch (e) {
       // Back to idle: the paragraphs re-queue on the next scroll/settle.
       batch.forEach((p) => (p.state = "idle"));
-      console.warn("[VeriSphere] paragraph batch failed:", e);
+      console.warn("[Verisphere] paragraph batch failed:", e);
       setStatus(e instanceof Error ? e.message : "Analysis failed");
       return;
     } finally {
