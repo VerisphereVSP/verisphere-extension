@@ -1,11 +1,11 @@
-# VeriSphere extension
+# Verisphere extension
 
-The VeriSphere truth-staking overlay for Wikipedia (MV3 browser extension).
+The Verisphere truth-staking overlay for Wikipedia (MV3 browser extension).
 
 Open any Wikipedia article and the extension highlights the sentences that map
-to on-chain VeriSphere **claims**, colored by their **Verity Score**. Hover to
+to on-chain Verisphere **claims**, colored by their **Verity Score**. Hover to
 preview, click to open the side panel, then **stake** on a claim or **create**
-a new one from a sentence — all gasless via the VeriSphere relay (the wallet
+a new one from a sentence — all gasless via the Verisphere relay (the wallet
 only signs; it never pays gas).
 
 ## Status: FE-first scaffold
@@ -13,11 +13,11 @@ only signs; it never pays gas).
 This package is built **frontend-first**. It runs today against **mock**
 adapters so you can load it on a real Wikipedia page with no backend:
 
-- `src/api/contract.ts` — the `VeriSphereAPI` interface the backend must satisfy.
+- `src/api/contract.ts` — the `VerisphereAPI` interface the backend must satisfy.
 - `src/api/mock.ts` — deterministic mock so highlights are demoable standalone.
 - `src/wallet/wallet.ts` — the wallet interface (sign-typed-data only) + a mock signer.
 
-Building the backend "backwards" means implementing `VeriSphereAPI` over the
+Building the backend "backwards" means implementing `VerisphereAPI` over the
 existing `app` endpoints (`/api/claims/*`, `/relay/async`, `/token/balance`)
 plus one new endpoint: **batch sentence → claim resolution** (`resolveSentences`).
 The real wallet is a WalletConnect v2 signer behind the same `Wallet` interface.
@@ -35,7 +35,7 @@ The real wallet is a WalletConnect v2 signer behind the same `Wallet` interface.
 - **Background** (`src/background/`) — thin; grows into API proxy + WC session.
 
 Shared visual language (`shared/vsColor.ts`, `shared/tokens.ts`) is ported from
-the VeriSphere web app so the overlay matches it.
+the Verisphere web app so the overlay matches it.
 
 ## Develop
 

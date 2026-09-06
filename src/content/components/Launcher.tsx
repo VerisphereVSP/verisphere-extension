@@ -42,7 +42,7 @@ export function Launcher({
         alt=""
         style={{ width: 18, height: 18, borderRadius: 5 }}
       />
-      VeriSphere
+      Verisphere
       {count > 0 && (
         <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 999, padding: "1px 8px", fontSize: 12 }}>
           {count}

@@ -1,4 +1,4 @@
-import type { VeriSphereAPI } from "./contract";
+import type { VerisphereAPI } from "./contract";
 import type { ArticleResolveRequest, ArticleResolveResult, Claim, ClaimGroup, Edge, UserStake } from "../shared/types";
 import { env } from "../shared/env";
 import { bgFetch } from "./bgFetch";
@@ -30,7 +30,7 @@ function toClaim(j: any): Claim {
   };
 }
 
-export const httpApi: VeriSphereAPI = {
+export const httpApi: VerisphereAPI = {
   async resolveArticle(req: ArticleResolveRequest): Promise<ArticleResolveResult> {
     const res = await bgFetch<{ groups?: any[]; fluff?: string[]; error?: string }>(`${appBase}/claims/locate`, {
       method: "POST",

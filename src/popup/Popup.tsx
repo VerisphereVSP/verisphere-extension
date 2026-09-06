@@ -34,8 +34,8 @@ export function Popup() {
   return (
     <div style={{ font: `14px ${tokens.font}`, color: tokens.ink }}>
       <div style={{ background: `linear-gradient(90deg, ${tokens.brandInk}, ${tokens.brand})`, color: "#fff", padding: "14px 16px" }}>
-        <div style={{ fontWeight: 800, fontSize: 16 }}>VeriSphere</div>
-        <div style={{ fontSize: 12, opacity: 0.85 }}>VeriSphere truth layer for Wikipedia</div>
+        <div style={{ fontWeight: 800, fontSize: 16 }}>Verisphere</div>
+        <div style={{ fontSize: 12, opacity: 0.85 }}>Verisphere truth layer for Wikipedia</div>
       </div>
 
       <div style={{ padding: 16 }}>

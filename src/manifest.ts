@@ -2,7 +2,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "VeriSphere — Truth-staking for Wikipedia",
+  name: "Verisphere — Truth-staking for Wikipedia",
   version: "0.1.0",
   description:
     "Highlights stakeable factual claims on Wikipedia, shows their on-chain Verity Score, and lets you stake or create claims.",
@@ -13,7 +13,7 @@ export default defineManifest({
     128: "icons/icon-128.png",
   },
   action: {
-    default_title: "VeriSphere",
+    default_title: "Verisphere",
     default_popup: "src/popup/index.html",
     default_icon: {
       16: "icons/icon-16.png",

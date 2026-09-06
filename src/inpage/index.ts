@@ -1,6 +1,6 @@
 /**
  * Runs in the page's MAIN world (where `window.ethereum` lives). Bridges
- * EIP-1193 requests from the VeriSphere content script (ISOLATED world) to the
+ * EIP-1193 requests from the Verisphere content script (ISOLATED world) to the
  * injected wallet via window.postMessage. Both worlds share `window`, so a
  * posted message is received on the other side.
  *

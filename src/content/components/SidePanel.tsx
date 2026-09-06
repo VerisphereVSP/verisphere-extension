@@ -97,7 +97,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       <div style={header}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <img src={chrome.runtime.getURL("icons/icon-32.png")} alt="" style={logoImg} />
-          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.01em" }}>VeriSphere</span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.01em" }}>Verisphere</span>
           {/* Page analysis still running (the launcher pill is hidden while the panel is open). */}
           {pageStatus.loading && <Dots />}
         </div>
@@ -201,7 +201,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       </div>
 
       <div style={foot}>
-        VeriSphere scores are staked market positions, not authoritative fact rulings.
+        Verisphere scores are staked market positions, not authoritative fact rulings.
       </div>
     </div>
   );
