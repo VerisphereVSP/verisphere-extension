@@ -10,7 +10,8 @@ export function useWallet() {
   return {
     ...state,
     mode: writeMode(state),
-    connect: () => wallet.connect(),
+    connect: (rdns?: string) => wallet.connect(rdns),
+    listProviders: () => wallet.listProviders(),
     disconnect: () => wallet.disconnect(),
     signer: wallet,
   };
