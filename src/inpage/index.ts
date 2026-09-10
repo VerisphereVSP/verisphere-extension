@@ -21,6 +21,17 @@ type Provider = { request(a: { method: string; params?: unknown[] }): Promise<un
 type Info = { uuid: string; name: string; icon: string; rdns: string };
 type Announced = { info: Info; provider: Provider };
 
+const ALLOWED_METHODS = new Set<string>([
+  "eth_requestAccounts",
+  "eth_accounts",
+  "eth_chainId",
+  "eth_getBalance",
+  "eth_getTransactionReceipt",
+  "eth_sendTransaction",
+  "eth_signTypedData_v4",
+  "wallet_switchEthereumChain",
+  "wallet_addEthereumChain",
+]);
 const discovered = new Map<string, Announced>();
 let selectedRdns: string | undefined;
 
@@ -59,6 +70,12 @@ window.addEventListener("message", async (event: MessageEvent) => {
     return;
   }
 
+  // Review 3 (2026-09-10): this bridge must not be a generic EIP-1193 proxy
+  // for page JavaScript. Only the methods the wallet layer actually uses.
+  if (!ALLOWED_METHODS.has(d.method ?? "")) {
+    reply({ error: `Method not allowed by the Verisphere bridge: ${d.method}` });
+    return;
+  }
   const provider = getProvider();
   if (!provider) {
     reply({ error: "No injected wallet found. Install MetaMask (or similar) and reload." });
