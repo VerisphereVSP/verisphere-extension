@@ -15,7 +15,8 @@ import { useWallet } from "../../wallet/useWallet";
 /** The docked workbench panel. Read detail + evidence, stake, or create. */
 export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose: () => void }) {
   const rec = records.get(sentenceId);
-  const { connected, address, connect, disconnect } = useWallet();
+  const { connected, address, connect, disconnect, providers, listProviders } = useWallet();
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [claim, setClaim] = useState<Claim | undefined>(rec?.claim);
   const [edges, setEdges] = useState<{ incoming: Edge[]; outgoing: Edge[] }>({ incoming: [], outgoing: [] });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -137,7 +138,38 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
               )}
             </div>
           ) : (
-            <button onClick={() => connect()} style={walletPill}>Connect</button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={async () => {
+                  // patch_ext_wallet: with several wallets installed, offer a choice
+                  // instead of whichever one won the window.ethereum injection race.
+                  const list = await listProviders();
+                  if (list.length > 1) setChooserOpen((v) => !v);
+                  else void connect();
+                }}
+                style={walletPill}
+              >
+                Connect
+              </button>
+              {chooserOpen && providers.length > 1 && (
+                <div style={{ position: "absolute", right: 0, top: "110%", zIndex: 2147483647,
+                              background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8,
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.12)", padding: 6, minWidth: 200 }}>
+                  {providers.map((p) => (
+                    <button
+                      key={p.rdns}
+                      onClick={() => { setChooserOpen(false); void connect(p.rdns); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+                               padding: "6px 8px", border: "none", background: "none",
+                               cursor: "pointer", fontSize: 13, textAlign: "left", color: "#111827" }}
+                    >
+                      <img src={p.icon} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           <button onClick={onClose} style={closeBtn} aria-label="Close">×</button>
         </div>

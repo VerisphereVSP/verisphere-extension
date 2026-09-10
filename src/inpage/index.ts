@@ -7,12 +7,36 @@
  * Protocol (all tagged `__verisphere: true`):
  *   req  { dir:"req", id, method, params }   content → page
  *   res  { dir:"res", id, result | error }   page → content
+ *
+ * patch_ext_wallet — multi-wallet (EIP-6963): with several wallet extensions
+ * installed, `window.ethereum` is whichever one won the injection race (in
+ * practice Coinbase Wallet), so users could never reach MetaMask. Every wallet
+ * announces itself via `eip6963:announceProvider`; we collect those and let
+ * the content side list/select them. Two local methods (never forwarded):
+ *   vs_listProviders            → [{uuid,name,icon,rdns}]
+ *   vs_selectProvider [rdns]    → true
+ * Resolution order: selected → the only one → MetaMask if present → window.ethereum.
  */
 type Provider = { request(a: { method: string; params?: unknown[] }): Promise<unknown> };
-// Look up the provider at REQUEST time, not module load — at document_start the
-// wallet may not have injected window.ethereum yet.
-const getProvider = (): Provider | undefined =>
-  (window as unknown as { ethereum?: Provider }).ethereum;
+type Info = { uuid: string; name: string; icon: string; rdns: string };
+type Announced = { info: Info; provider: Provider };
+
+const discovered = new Map<string, Announced>();
+let selectedRdns: string | undefined;
+
+window.addEventListener("eip6963:announceProvider", (e: Event) => {
+  const d = (e as CustomEvent<Announced>).detail;
+  if (d?.info?.rdns && d.provider) discovered.set(d.info.rdns, d);
+});
+const requestProviders = () => window.dispatchEvent(new Event("eip6963:requestProvider"));
+requestProviders();
+
+const getProvider = (): Provider | undefined => {
+  if (selectedRdns && discovered.has(selectedRdns)) return discovered.get(selectedRdns)!.provider;
+  if (discovered.size === 1) return [...discovered.values()][0].provider;
+  if (discovered.has("io.metamask")) return discovered.get("io.metamask")!.provider;
+  return (window as unknown as { ethereum?: Provider }).ethereum;
+};
 
 window.addEventListener("message", async (event: MessageEvent) => {
   if (event.source !== window) return;
@@ -21,6 +45,19 @@ window.addEventListener("message", async (event: MessageEvent) => {
 
   const reply = (payload: Record<string, unknown>) =>
     window.postMessage({ __verisphere: true, dir: "res", id: d.id, ...payload }, "*");
+
+  if (d.method === "vs_listProviders") {
+    requestProviders(); // wallets re-announce on request; catch late loaders
+    await new Promise((r) => setTimeout(r, 50));
+    reply({ result: [...discovered.values()].map((p) => p.info) });
+    return;
+  }
+  if (d.method === "vs_selectProvider") {
+    const rdns = String(d.params?.[0] ?? "");
+    selectedRdns = discovered.has(rdns) ? rdns : undefined;
+    reply({ result: selectedRdns !== undefined });
+    return;
+  }
 
   const provider = getProvider();
   if (!provider) {

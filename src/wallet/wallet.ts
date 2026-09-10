@@ -1,5 +1,5 @@
 import type { TypedDataSigner } from "../api/contract";
-import type { WalletState, WriteMode } from "../shared/types";
+import type { WalletProviderInfo, WalletState, WriteMode } from "../shared/types";
 import { env } from "../shared/env";
 import { bgFetch } from "../api/bgFetch";
 import { providerRequest } from "./bridge";
@@ -28,7 +28,10 @@ export function writeMode(s: WalletState): WriteMode {
  */
 export interface Wallet extends TypedDataSigner {
   getState(): WalletState;
-  connect(): Promise<WalletState>;
+  /** Connect; pass an EIP-6963 rdns to pick a specific wallet (persisted). */
+  connect(rdns?: string): Promise<WalletState>;
+  /** Discover installed wallets (EIP-6963) and publish them on state.providers. */
+  listProviders(): Promise<WalletProviderInfo[]>;
   /** Silently restore a prior session (eth_accounts — never prompts). */
   restore(): Promise<void>;
   disconnect(): Promise<void>;
@@ -36,20 +39,49 @@ export interface Wallet extends TypedDataSigner {
 }
 
 class InjectedWallet implements Wallet {
-  private state: WalletState = { connected: false, address: null, balance: null, avax: null, balancesLoaded: false };
+  private state: WalletState = { connected: false, address: null, balance: null, avax: null, balancesLoaded: false, providers: [] };
+
+  async listProviders(): Promise<WalletProviderInfo[]> {
+    try {
+      const list = await providerRequest<WalletProviderInfo[]>("vs_listProviders");
+      this.state = { ...this.state, providers: list ?? [] };
+      this.emit();
+      return list ?? [];
+    } catch {
+      return this.state.providers;
+    }
+  }
+
+  /** patch_ext_wallet: apply the persisted (or given) wallet choice in the bridge. */
+  private async applyPreference(rdns?: string): Promise<void> {
+    let chosen = rdns;
+    if (!chosen) {
+      const { walletRdns } = await chrome.storage.local.get("walletRdns");
+      chosen = typeof walletRdns === "string" ? walletRdns : undefined;
+    }
+    if (chosen) {
+      const ok = await providerRequest<boolean>("vs_selectProvider", [chosen]);
+      if (ok) {
+        void chrome.storage.local.set({ walletRdns: chosen });
+        this.state = { ...this.state, walletRdns: chosen };
+      }
+    }
+  }
   private subs = new Set<(s: WalletState) => void>();
 
   getState() {
     return this.state;
   }
 
-  async connect(): Promise<WalletState> {
+  async connect(rdns?: string): Promise<WalletState> {
+    await this.listProviders();
+    await this.applyPreference(rdns);
     const accounts = await providerRequest<string[]>("eth_requestAccounts");
     const address = accounts?.[0] ?? null;
     if (!address) throw new Error("No account returned by the wallet.");
     // Remember the session so page refreshes silently reconnect (restore()).
     void chrome.storage.local.set({ walletConnected: true });
-    this.state = { connected: true, address, balance: null, avax: null, balancesLoaded: false };
+    this.state = { ...this.state, connected: true, address, balance: null, avax: null, balancesLoaded: false };
     this.emit();
     // Get onto the right network before reading balances (AVAX is chain-scoped,
     // and writeMode depends on it). If the user declines, the pre-write guard
@@ -73,10 +105,12 @@ class InjectedWallet implements Wallet {
     try {
       const { walletConnected } = await chrome.storage.local.get("walletConnected");
       if (!walletConnected || this.state.connected) return;
+      await this.listProviders();
+      await this.applyPreference();
       const accounts = await providerRequest<string[]>("eth_accounts");
       const address = accounts?.[0];
       if (!address) return; // wallet locked or authorization revoked
-      this.state = { connected: true, address, balance: null, avax: null, balancesLoaded: false };
+      this.state = { ...this.state, connected: true, address, balance: null, avax: null, balancesLoaded: false };
       this.emit();
       await this.refreshBalances(address);
     } catch {
@@ -88,7 +122,7 @@ class InjectedWallet implements Wallet {
     // Injected wallets have no programmatic disconnect; drop our local session
     // and stop auto-restoring until the user connects again.
     void chrome.storage.local.remove("walletConnected");
-    this.state = { connected: false, address: null, balance: null, avax: null, balancesLoaded: false };
+    this.state = { ...this.state, connected: false, address: null, balance: null, avax: null, balancesLoaded: false };
     this.emit();
   }
 

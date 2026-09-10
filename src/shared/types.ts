@@ -108,6 +108,18 @@ export interface WalletState {
   balance: number | null; // VSP, human units
   avax: number | null; // native AVAX, human units
   balancesLoaded: boolean; // false between connect and the first balance fetch
+  /** patch_ext_wallet: EIP-6963 wallets discovered on the page (for the chooser). */
+  providers: WalletProviderInfo[];
+  /** rdns of the wallet the user picked (persisted); undefined = auto. */
+  walletRdns?: string;
+}
+
+/** EIP-6963 provider identity (a subset of `EIP6963ProviderInfo`). */
+export interface WalletProviderInfo {
+  uuid: string;
+  name: string;
+  icon: string;
+  rdns: string;
 }
 
 /**
