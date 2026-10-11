@@ -125,6 +125,9 @@ const FEE_APPROVE_WEI = 100n * 10n ** 18n; // standing allowance to the collecto
 interface FeeQuote {
   fee_total_vsp: number;
   fee_usd?: number;
+  /** patch_ext_gas_fee_2: the gas to sign as request.gas (estimate × margin). Avalanche bills
+   *  max(gas used, limit / 2), so the 800,000 constant was billed at half of itself. */
+  gas_suggest?: number;
 }
 
 /** The relay's quote for this action, before anything is signed. null when the
@@ -178,7 +181,8 @@ async function sendMetaTx(to: string, data: string, permitValueWei: bigint, gas 
   const nonceRes = await bgFetch<{ nonce: number }>(`${appBase}/relay/nonce/${owner}`);
   const nonce = nonceRes.json?.nonce ?? 0;
   const deadline = Math.floor(Date.now() / 1000) + 300;
-  const message = { from: owner, to, value: 0, gas, nonce, deadline, data };
+  const requestGas = quote?.gas_suggest && quote.gas_suggest > 0 ? quote.gas_suggest : gas; // patch_ext_gas_fee_2
+  const message = { from: owner, to, value: 0, gas: requestGas, nonce, deadline, data };
   const signature = await wallet.signTypedData({
     domain: { name: cfg.forwarder.name, version: cfg.forwarder.version, chainId: cfg.chainId, verifyingContract: forwarder },
     types: FORWARD_REQUEST_TYPES,
