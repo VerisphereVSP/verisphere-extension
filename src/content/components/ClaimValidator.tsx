@@ -8,7 +8,7 @@ import { checkAtomicity, findDuplicates, moderateClaim } from "../../api/checks"
 import { useWallet } from "../../wallet/useWallet";
 import { writeMode } from "../../wallet/wallet";
 import { formatTxError } from "../../wallet/errors";
-import { useWriteStage, writeStageLabel } from "../../wallet/progress";
+import { useWriteStage, writeStageLabel, useFeeQuote } from "../../wallet/progress";  // patch_ext_gas_fee
 import { VSChip } from "./VS";
 import { BuyVspCta } from "./BuyVspCta";
 import { Dots } from "./Dots";
@@ -54,6 +54,7 @@ export function ClaimValidator({
 }) {
   const { connected, address, connect, signer, mode } = useWallet();
   const writeStage = useWriteStage();
+  const feeQuote = useFeeQuote();  // patch_ext_gas_fee: the relay fee for this action, shown while signing
   const [text, setText] = useState(initialText);
   const [canonical, setCanonical] = useState(initialText);
   const [hasRun, setHasRun] = useState(false);
@@ -305,7 +306,8 @@ export function ClaimValidator({
                 }}
               >
                 {phase === "creating" || phase === "staking" ? (
-                  writeStageLabel(writeStage) ?? (phase === "staking" ? "Staking…" : "Creating…")
+                  (writeStageLabel(writeStage) ?? (phase === "staking" ? "Staking…" : "Creating…")) +
+                  (feeQuote != null && writeStage === "awaiting-wallet" ? ` fee ${feeQuote.toFixed(3)} VSP` : "")
                 ) : phase === "connecting" || walletLoading ? (
                   <Dots />
                 ) : anyLoading ? (

@@ -6,7 +6,7 @@ import { api } from "../../api";
 import { useWallet } from "../../wallet/useWallet";
 import { writeMode } from "../../wallet/wallet";
 import { formatTxError } from "../../wallet/errors";
-import { useWriteStage, writeStageLabel } from "../../wallet/progress";
+import { useWriteStage, writeStageLabel, useFeeQuote } from "../../wallet/progress";  // patch_ext_gas_fee
 import { BuyVspCta } from "./BuyVspCta";
 import { Dots } from "./Dots";
 
@@ -27,6 +27,7 @@ export function StakeWidget({
 }) {
   const { connected, address, balance, connect, signer, mode } = useWallet();
   const writeStage = useWriteStage();
+  const feeQuote = useFeeQuote();  // patch_ext_gas_fee: the relay fee for this action, shown while signing
   const [target, setTarget] = useState(initialSide === "challenge" ? "-10" : initialSide === "support" ? "10" : "0");
   const [phase, setPhase] = useState<"idle" | "connecting" | "submitting">("idle");
   const [err, setErr] = useState<string | null>(null);
@@ -118,7 +119,7 @@ export function StakeWidget({
         <span style={{ fontSize: 12, fontWeight: 700, color: sideColor, minWidth: 74 }}>VSP · {side}</span>
         <button onClick={apply} disabled={busy} style={{ ...applyBtn, opacity: busy ? 0.6 : 1 }}>
           {phase === "submitting" ? (
-            writeStageLabel(writeStage) ?? "…"
+            (writeStageLabel(writeStage) ?? "…") + (feeQuote != null && writeStage === "awaiting-wallet" ? ` fee ${feeQuote.toFixed(3)} VSP` : "")
           ) : phase === "connecting" || walletLoading ? (
             <Dots />
           ) : connected ? (

@@ -16,9 +16,23 @@ export type WriteStage =
 let stage: WriteStage = null;
 const subs = new Set<() => void>();
 
+// patch_ext_gas_fee: the relay's quoted fee for the action in flight (VSP), shown
+// on the button while the user signs; null = none / not quoted.
+let feeQuote: number | null = null;
+
 export function setWriteStage(s: WriteStage) {
   stage = s;
+  if (s === null) feeQuote = null;
   subs.forEach((cb) => cb());
+}
+
+export function setFeeQuote(vsp: number | null) {
+  feeQuote = vsp;
+  subs.forEach((cb) => cb());
+}
+
+export function useFeeQuote(): number | null {
+  return useSyncExternalStore(subscribe, () => feeQuote);
 }
 
 function subscribe(cb: () => void) {
@@ -35,7 +49,7 @@ export function writeStageLabel(s: WriteStage): string | null {
     case "approving":
       return "Approving VSP…";
     case "awaiting-wallet":
-      return "Confirm in wallet…";
+      return "Sign in wallet…";  // patch_ext_gas_fee: relay writes are signatures, never gas transactions
     case "confirming":
       return "Confirming…";
     case "submitting":
