@@ -17,6 +17,11 @@ export interface RelayConfig {
   postingFeeWei: string;
   addresses: { stakeEngine: string; postRegistry: string; vspToken: string };
   chain: ChainParams;
+  /** patch_ext_gas_fee: the address the standing fee allowance is granted to — the
+   *  relay wallet, which quotes and collects its own gas-indexed fee. Absent on an
+   *  older backend (then the Forwarder's schedule still applies). */
+  feeCollector?: string;
+  fee?: { basis: string; markup: number; quoteEndpoint?: string };
 }
 
 let _cfg: RelayConfig | null = null;

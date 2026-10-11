@@ -3,7 +3,7 @@ import { bgFetch } from "../api/bgFetch";
 import { wallet } from "./wallet";
 import { getRelayConfig, type RelayConfig } from "./relayConfig";
 import { verifyBuiltTx, type BuildAction, type BuildParams } from "./verifyBuild";
-import { setWriteStage } from "./progress";
+import { setWriteStage, setFeeQuote } from "./progress";
 
 /**
  * Gasless write path (relay mode: VSP but no AVAX). The app builds the calldata
@@ -11,9 +11,16 @@ import { setWriteStage } from "./progress";
  * send an approve tx, allowances are granted via EIP-2612 **permit
  * signatures** that the relay executes before the action:
  *   - posting/stake permit (spender = StakeEngine/PostRegistry)  → `permit`
- *   - fee permit (spender = Forwarder, for the relay fee)         → `fee_permit`
+ *   - fee permit (spender = the fee COLLECTOR = the relay wallet) → `fee_permit`
  * The relay executes `permit` then `fee_permit`, so their nonces must be
  * sequential in that order.
+ *
+ * patch_ext_gas_fee: the fee is the relay's own gas cost in VSP × one markup
+ * knob (no floor, no percentage, no contract carries fee logic). The relay
+ * quotes it before signing (GET /relay/estimate-fee); we show it and send the
+ * displayed number back as fee_quote_vsp — the relay never charges more. The
+ * standing fee allowance is 100 VSP (the security-review bound), renewed below
+ * 10 — it was 10,000 to the Forwarder here, which the web app had already cut.
  */
 
 const appBase = env.appApiBase; // calldata build, allowance, nonces, submit
@@ -112,8 +119,22 @@ async function signPermit(cfg: RelayConfig, owner: string, spender: string, valu
   };
 }
 
-const FEE_MIN_WEI = 10n ** 17n; // 0.1 VSP relay fee
-const FEE_APPROVE_WEI = 10_000n * 10n ** 18n; // one-time Forwarder allowance
+const FEE_RENEW_WEI = 10n * 10n ** 18n; // renew the standing fee allowance below 10 VSP
+const FEE_APPROVE_WEI = 100n * 10n ** 18n; // standing allowance to the collector: 100 VSP
+
+interface FeeQuote {
+  fee_total_vsp: number;
+  fee_usd?: number;
+}
+
+/** The relay's quote for this action, before anything is signed. null when the
+ *  backend cannot quote (the submission then decides). */
+async function fetchFeeQuote(to: string, data: string, from: string): Promise<FeeQuote | null> {
+  const q = new URLSearchParams({ to, calldata: data, from });
+  const res = await bgFetch<FeeQuote>(`${appBase}/relay/estimate-fee?${q.toString()}`);
+  if (!res.ok || !res.json || typeof res.json.fee_total_vsp !== "number") return null;
+  return res.json;
+}
 
 interface RelayResult {
   txHash: string;
@@ -126,25 +147,30 @@ async function sendMetaTx(to: string, data: string, permitValueWei: bigint, gas 
   const owner = wallet.getState().address;
   if (!owner) throw new Error("Wallet not connected");
   const forwarder = cfg.forwarder.address;
+  // patch_ext_gas_fee: the fee collector is the relay wallet (from /relay/config);
+  // an older backend without it still runs the Forwarder's schedule.
+  const feeSpender = cfg.feeCollector || forwarder;
 
   // Decide which permits are needed (skip if allowance already sufficient).
-  const [spendAllow, feeAllow, baseNonce] = await Promise.all([
+  const [spendAllow, feeAllow, baseNonce, quote] = await Promise.all([
     permitValueWei > 0n ? allowanceWei(owner, to) : Promise.resolve(0n),
-    allowanceWei(owner, forwarder),
+    allowanceWei(owner, feeSpender),
     permitNonce(cfg.token.address, owner),
+    fetchFeeQuote(to, data, owner),
   ]);
+  setFeeQuote(quote ? quote.fee_total_vsp : null);
 
   let n = baseNonce;
   let permit: PermitPayload | undefined;
   let fee_permit: PermitPayload | undefined;
-  setWriteStage("awaiting-wallet"); // the user signs the permits + forward request
+  setWriteStage("awaiting-wallet"); // the user signs the permits + forward request, one at a time
   // The relay executes `permit` before `fee_permit`, so assign nonces in order.
   if (permitValueWei > 0n && spendAllow < permitValueWei) {
     permit = await signPermit(cfg, owner, to, permitValueWei, n);
     n++;
   }
-  if (feeAllow < FEE_MIN_WEI) {
-    fee_permit = await signPermit(cfg, owner, forwarder, FEE_APPROVE_WEI, n);
+  if (feeAllow < FEE_RENEW_WEI) {
+    fee_permit = await signPermit(cfg, owner, feeSpender, FEE_APPROVE_WEI, n);
     n++;
   }
 
@@ -166,7 +192,10 @@ async function sendMetaTx(to: string, data: string, permitValueWei: bigint, gas 
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ request: message, signature, permit, fee_permit }),
+      body: JSON.stringify({
+        request: message, signature, permit, fee_permit,
+        fee_quote_vsp: quote ? quote.fee_total_vsp : undefined, // patch_ext_gas_fee: never charged more than shown
+      }),
     },
   );
   if (!res.ok || !res.json) throw new Error(res.json?.detail ?? res.error ?? `relay ${res.status}`);
