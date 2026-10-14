@@ -8,6 +8,7 @@
     "dev": "node scripts/run.mjs dev",
     "build": "tsc --noEmit && node scripts/run.mjs build",
     "build:prod": "tsc --noEmit && node scripts/run.mjs build --env production",
+    "release": "npm run build:prod && node scripts/release.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

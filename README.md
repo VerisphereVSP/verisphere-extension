@@ -48,3 +48,21 @@ npm run dev        # HMR dev build
 Then load `dist/` (or the dev server output) via
 `chrome://extensions → Load unpacked`, and open e.g.
 `https://en.wikipedia.org/wiki/Bitcoin`.
+
+## Publish (Chrome Web Store) <!-- patch_ext_release -->
+
+```bash
+npm run release    # tsc → vite build --mode production → scripts/release.mjs → release/verisphere-extension-<version>.zip
+```
+
+`release.mjs` refuses a build whose manifest or bundles mention a dev host (localhost, test.verisphere.co, *.example),
+whose `host_permissions` differ from `.env.production`'s API origin, or whose manifest carries a `key`. Upload the zip it
+prints — nothing else. Before each upload: bump `version` in `src/manifest.ts` (the store rejects a re-used version),
+load `dist/` unpacked once and stake on a live Wikipedia page against production, and check the listing fields:
+
+- Privacy policy URL: `https://app.verisphere.co/docs/viewer.html?file=privacy.md` (covers the extension, §1).
+- Support contact: `support@verisphere.co`. Homepage: `https://verisphere.co`.
+- Permissions justification: `storage` (the on/off switch and selected wallet), `activeTab` (none beyond the content
+  script), host `*.wikipedia.org` (where the overlay runs), host `app.verisphere.co/api` (claims, scores, relay).
+  No remote code; no RPC host — chain reads and signatures go through the page's injected wallet.
+- Single purpose: highlight stakeable factual claims on Wikipedia and let the reader stake on them via Verisphere.

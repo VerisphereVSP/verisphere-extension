@@ -1,6 +1,20 @@
 import { defineManifest } from "@crxjs/vite-plugin";
+import { loadEnv } from "vite";
 
-export default defineManifest({
+// patch_ext_release: the manifest is a function of the Vite mode so that the
+// store build (`--env production`) declares exactly the hosts it uses — the app
+// API origin from .env.production — and nothing from dev (localhost, test host).
+// The extension never calls an RPC node itself: chain reads and signatures go
+// through the page's injected wallet, so no Avalanche RPC host is declared.
+export default defineManifest((env) => {
+  const vars = loadEnv(env.mode, process.cwd(), "VITE_");
+  const apiBase = vars.VITE_APP_API_BASE ?? "https://test.verisphere.co/api";
+  const apiOrigin = new URL(apiBase).origin;
+  const hostPermissions =
+    env.mode === "production"
+      ? ["*://*.wikipedia.org/*", `${apiOrigin}/api/*`]
+      : ["*://*.wikipedia.org/*", "http://localhost:8070/*", `${apiOrigin}/api/*`];
+  return {
   manifest_version: 3,
   name: "Verisphere — Truth-staking for Wikipedia",
   version: "0.1.0",
@@ -39,22 +53,13 @@ export default defineManifest({
       world: "MAIN",
     },
   ],
-  // Pages the overlay runs on, plus the app API it calls. Includes both local
-  // dev and prod hosts so a single build works per env; replace the
-  // *.verisphere.example placeholder with your real domain.
-  host_permissions: [
-    "*://*.wikipedia.org/*",
-    "http://localhost:8070/*",
-    "https://api.verisphere.example/*",
-    "https://verisphere.co/api/*",
-    "https://test.verisphere.co/api/*",
-    "https://api.avax-test.network/*",
-    "https://api.avax.network/*",
-  ],
+  // Pages the overlay runs on, plus the app API it calls (see the mode logic above).
+  host_permissions: hostPermissions,
   permissions: ["storage", "activeTab"],
   // The pill/panel <img> tags live in the page DOM, so the page must be
   // allowed to load the icon from the extension origin.
   web_accessible_resources: [
     { resources: ["icons/*.png"], matches: ["*://*.wikipedia.org/*"] },
   ],
+  };
 });
