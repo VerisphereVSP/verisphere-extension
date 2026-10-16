@@ -4,6 +4,7 @@ import { wallet } from "./wallet";
 import { getRelayConfig, type RelayConfig } from "./relayConfig";
 import { verifyBuiltTx, type BuildAction, type BuildParams } from "./verifyBuild";
 import { setWriteStage, setFeeQuote } from "./progress";
+import { allowanceCovers, permitKind, standingPermitValue } from "./allowance"; // patch_ext_standing_allowance
 
 /**
  * Gasless write path (relay mode: VSP but no AVAX). The app builds the calldata
@@ -14,6 +15,10 @@ import { setWriteStage, setFeeQuote } from "./progress";
  *   - fee permit (spender = the fee COLLECTOR = the relay wallet) → `fee_permit`
  * The relay executes `permit` then `fee_permit`, so their nonces must be
  * sequential in that order.
+ *
+ * patch_ext_standing_allowance: the posting/stake permit is a STANDING allowance (allowance.ts),
+ * so steady state is ONE wallet prompt per action — the ForwardRequest. The fee permit keeps its
+ * 100 VSP bound; moving its spender off the relay EOA is the FeeCollector step.
  *
  * patch_ext_gas_fee: the fee is the relay's own gas cost in VSP × one markup
  * knob (no floor, no percentage, no contract carries fee logic). The relay
@@ -168,8 +173,11 @@ async function sendMetaTx(to: string, data: string, permitValueWei: bigint, gas 
   let fee_permit: PermitPayload | undefined;
   setWriteStage("awaiting-wallet"); // the user signs the permits + forward request, one at a time
   // The relay executes `permit` before `fee_permit`, so assign nonces in order.
-  if (permitValueWei > 0n && spendAllow < permitValueWei) {
-    permit = await signPermit(cfg, owner, to, permitValueWei, n);
+  // patch_ext_standing_allowance: permit a STANDING allowance to the protocol contract (same rule
+  // as the web app: 10,000 VSP to StakeEngine or twice the stake; 100 posting fees to PostRegistry)
+  // instead of the exact amount, and only when the current allowance does not cover this action.
+  if (!allowanceCovers(spendAllow, permitValueWei)) {
+    permit = await signPermit(cfg, owner, to, standingPermitValue(permitKind(to, cfg.addresses), permitValueWei), n);
     n++;
   }
   if (feeAllow < FEE_RENEW_WEI) {
