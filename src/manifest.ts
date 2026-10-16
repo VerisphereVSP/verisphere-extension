@@ -1,5 +1,10 @@
 import { defineManifest } from "@crxjs/vite-plugin";
 import { loadEnv } from "vite";
+import { readFileSync } from "node:fs";
+
+// patch_ext_standing_allowance: ONE version, in package.json — the manifest reads it, so a release
+// bump is `npm version patch` (the store never accepts the same version twice).
+const pkgVersion: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 // patch_ext_release: the manifest is a function of the Vite mode so that the
 // store build (`--env production`) declares exactly the hosts it uses — the app
@@ -17,7 +22,7 @@ export default defineManifest((env) => {
   return {
   manifest_version: 3,
   name: "Verisphere — Truth-staking for Wikipedia",
-  version: "0.1.0",
+  version: pkgVersion,
   description:
     "Highlights stakeable factual claims on Wikipedia, shows their on-chain Verity Score, and lets you stake or create claims.",
   icons: {
