@@ -141,6 +141,7 @@ export function Overlay() {
         el: base.el,
         start: base.start,
         end: base.end,
+        sourceSentenceId: base.sentenceId,
       });
       createIntents.set(id, side);
       setPanelId(id);
@@ -158,6 +159,7 @@ export function Overlay() {
         el: base.el,
         start: base.start,
         end: base.end,
+        sourceSentenceId: base.sentenceId,
       });
       createIntents.set(id, side);
       setPanelId(id);
@@ -257,6 +259,7 @@ export function Overlay() {
     for (const [id, r] of records) {
       if (r.status === "mapped" || r.status === "low-liquidity" || r.status === "diverged") {
         groupIds.add(r.groupId ?? id);
+        for (const g of r.choices ?? []) groupIds.add(g);
       }
     }
     return { mapped: groupIds.size };

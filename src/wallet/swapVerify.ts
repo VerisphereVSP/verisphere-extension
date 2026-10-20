@@ -197,9 +197,11 @@ export function verifyPoolBuild(args: {
     if (!a || lower(a.token) !== needs || lower(a.spender) !== lower(routes.router) || BigInt(a.amount) !== amountIn) {
       fail("approval does not match the trade");
     }
-    // USDC (buying) is approved for the exact amount; VSP (selling) gets the one-time
-    // max approval the protocol asked for, so later sells need one prompt.
-    approve = { token: needs, amount: side === "sell" ? MAX_UINT256 : amountIn };
+    // One-time standing approval for both tokens (the protocol asked for it on VSP
+    // sells; USDC buys get the same so a repeat purchase is one prompt, as in any
+    // wallet's swap). The router is the venue's immutable, audited contract. The
+    // first trade of a token on a wallet is approve + swap; every later one is one tx.
+    approve = { token: needs, amount: MAX_UINT256 };
   } else if (build.approve) {
     fail("an approval was attached to a native-AVAX trade");
   }

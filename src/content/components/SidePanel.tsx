@@ -4,7 +4,7 @@ import { env } from "../../shared/env";
 import { fmtVsp, shortAddr } from "../../shared/format";
 import type { Claim, Edge } from "../../shared/types";
 import { api } from "../../api";
-import { records, groups, createIntents, applyClaimToGroup, emit, pageStatus, type SentenceRecord } from "../store";
+import { records, groups, createIntents, applyClaimToGroup, emit, pageStatus, rankedGroups, type SentenceRecord } from "../store";
 import { repaintSentence, repaintGroup } from "../highlighter";
 import { VSBar, VSChip } from "./VS";
 import { StakeWidget } from "./StakeWidget";
@@ -70,6 +70,15 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
       return;
     }
     const r = records.get(sentenceId);
+    if (r && !r.groupId && r.sourceSentenceId) {
+      // Created (or adopted) from an existing sentence's panel: the sentence now
+      // states one more claim. Rank it in and repaint the sentence once; this
+      // synthetic record stays unpainted so the words aren't underlined twice.
+      adoptIntoSentence(r.sourceSentenceId, c);
+      r.claim = c;
+      createIntents.delete(sentenceId);
+      return;
+    }
     if (r?.groupId) {
       // Claim groups update as a unit: every sentence expressing this claim
       // gets the new state and repaints together.
@@ -255,6 +264,17 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
             </div>
 
             <Evidence edges={edges} />
+
+            {rec.el !== document.body && (
+              <div style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${tokens.line}` }}>
+                <div style={{ fontSize: 12, color: tokens.muted, marginBottom: 8 }}>
+                  Not the claim you mean? A sentence can state several.
+                </div>
+                <button onClick={() => openCreateFrom(rec)} style={ghostWide}>
+                  Create a different claim from this sentence
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ fontSize: 13, color: tokens.muted }}>Loading…</div>
@@ -334,6 +354,8 @@ function ClaimChooser({ rec }: { rec: SentenceRecord }) {
       el: rec.el,
       start: rec.start,
       end: rec.end,
+      // so "create a similar claim" from the picked claim's view still knows its sentence
+      sourceSentenceId: rec.sourceSentenceId ?? (rec.sentenceId.startsWith("sel-") ? undefined : rec.sentenceId),
     });
     const intent = createIntents.get(rec.sentenceId);
     if (intent) createIntents.set(id, intent);
@@ -346,12 +368,16 @@ function ClaimChooser({ rec }: { rec: SentenceRecord }) {
       <div style={{ fontSize: 12, fontWeight: 700, color: tokens.brand, marginBottom: 4 }}>
         {rec.listAll
           ? `${choices.length} claim${choices.length === 1 ? "" : "s"} on this page`
-          : `Your selection touches ${choices.length} claims`}
+          : rec.claim
+            ? `This sentence states ${choices.length} claims`
+            : `Your selection touches ${choices.length} claims`}
       </div>
       <div style={{ fontSize: 12, color: tokens.muted, marginBottom: 10 }}>
         {rec.listAll
           ? "Click one to view and stake. To create a new claim, select any sentence in the article."
-          : "Pick the one you mean:"}
+          : rec.claim
+            ? "Pick the one you want to support or challenge:"
+            : "Pick the one you mean:"}
       </div>
       {choices.map((g) => (
         <button
@@ -372,8 +398,64 @@ function ClaimChooser({ rec }: { rec: SentenceRecord }) {
           )}
         </button>
       ))}
+      {!rec.listAll && (
+        <button onClick={() => openCreateFrom(rec)} style={{ ...ghostWide, marginTop: 4 }}>
+          None of these — create a new claim from this sentence
+        </button>
+      )}
     </div>
   );
+}
+
+/**
+ * Open the create view for a new claim about `rec`'s sentence; the editor opens
+ * with the sentence text, to be cut down to the claim the user means. The new
+ * record remembers the painted sentence it came from (sourceSentenceId) so the
+ * created claim joins that sentence's claim list instead of painting a second
+ * underline over the same words.
+ */
+function openCreateFrom(rec: SentenceRecord) {
+  const id = `sel-${Date.now()}`;
+  const source = rec.sourceSentenceId ?? (rec.sentenceId.startsWith("sel-") ? undefined : rec.sentenceId);
+  records.set(id, {
+    sentenceId: id,
+    text: rec.text,
+    status: "eligible",
+    el: rec.el,
+    start: rec.start,
+    end: rec.end,
+    sourceSentenceId: source,
+  });
+  createIntents.set(id, createIntents.get(rec.sentenceId) ?? "support");
+  emit("open", { sentenceId: id });
+}
+
+/** A claim created (or adopted) from a painted sentence's panel joins that sentence's claims. */
+function adoptIntoSentence(sourceId: string, c: Claim) {
+  const src = records.get(sourceId);
+  if (!src) return;
+  const gid = `oc:${c.postId}`;
+  const status = c.active ? "mapped" : "low-liquidity";
+  const existing = groups.get(gid);
+  if (existing) {
+    existing.claim = c;
+    existing.status = status;
+    if (!existing.sentenceIds.includes(sourceId)) existing.sentenceIds.push(sourceId);
+  } else {
+    groups.set(gid, { groupId: gid, canonicalText: c.text || src.text, sentenceIds: [sourceId], status, claim: c });
+  }
+  const all = new Set<string>(src.choices ?? (src.groupId ? [src.groupId] : []));
+  all.add(gid);
+  const ranked = rankedGroups([...all]);
+  const primary = ranked[0];
+  if (!primary) return;
+  src.choices = ranked.length > 1 ? ranked.map((g) => g.groupId) : undefined;
+  src.groupId = primary.groupId;
+  src.canonicalText = primary.canonicalText;
+  src.claim = primary.claim;
+  src.status = primary.status;
+  src.matchScore = primary.matchScore;
+  repaintSentence(sourceId);
 }
 
 /**
@@ -559,6 +641,18 @@ const closeBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 const statsRow: React.CSSProperties = { display: "flex", gap: 8, padding: "10px 0", borderTop: `1px solid ${tokens.line}`, borderBottom: `1px solid ${tokens.line}` };
+const ghostWide: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: `1px solid ${tokens.line}`,
+  background: tokens.surface,
+  color: tokens.brand,
+  fontSize: 12.5,
+  fontWeight: 700,
+  cursor: "pointer",
+  textAlign: "center",
+};
 const warn: React.CSSProperties = { fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 10px", marginBottom: 10 };
 const info: React.CSSProperties = { fontSize: 12, color: tokens.brandInk, background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 8, padding: "8px 10px", marginBottom: 10 };
 const foot: React.CSSProperties = { padding: "10px 14px", fontSize: 11, color: tokens.faint, borderTop: `1px solid ${tokens.line}`, background: tokens.surfaceAlt };

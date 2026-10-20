@@ -3,7 +3,7 @@ import { api } from "../api";
 import { extractSentences } from "./sentences";
 import { extractPhrases } from "./phrases";
 import { injectMarkStyles, paint } from "./highlighter";
-import { groups, hooks, page, pageStatus, records, type SentenceRecord } from "./store";
+import { groups, hooks, page, pageStatus, rankedGroups, records, type SentenceRecord } from "./store";
 import type { ArticleResolveResult } from "../shared/types";
 import { wallet } from "../wallet/wallet";
 import { Overlay } from "./overlay";
@@ -143,23 +143,28 @@ async function boot() {
       }
     }
 
-    // Each sentence maps to at most one matched claim; unmatched = fluff.
-    const groupBySentence = new Map<string, string>();
+    // Every group a sentence belongs to; unmatched = fluff. A sentence can state
+    // several claims ("… threatens people with increased flooding, extreme heat,
+    // …"): its record carries the top-ranked one for the underline and hover
+    // card, and lists all of them in `choices` so a click opens the chooser.
+    const groupsBySentence = new Map<string, string[]>();
     for (const g of res.groups) {
-      for (const id of g.sentenceIds) groupBySentence.set(id, g.groupId);
+      for (const id of g.sentenceIds) {
+        const list = groupsBySentence.get(id) ?? [];
+        if (!list.includes(g.groupId)) list.push(g.groupId);
+        groupsBySentence.set(id, list);
+      }
     }
 
     const recs: SentenceRecord[] = [];
     for (const p of batch) {
       for (const s of p.sentences) {
-        const gid = groupBySentence.get(s.sentenceId);
-        const g = gid ? groups.get(gid) : undefined;
+        const ranked = rankedGroups(groupsBySentence.get(s.sentenceId) ?? []);
+        const g = ranked[0];
         if (!g) {
           recs.push({ ...s, status: "none" }); // no matching claim
           continue;
         }
-        // One claim per sentence: a matched sentence points to its claim and
-        // underlines in full.
         recs.push({
           ...s,
           status: g.status,
@@ -167,6 +172,7 @@ async function boot() {
           matchScore: g.matchScore,
           groupId: g.groupId,
           canonicalText: g.canonicalText,
+          choices: ranked.length > 1 ? ranked.map((x) => x.groupId) : undefined,
         });
       }
     }

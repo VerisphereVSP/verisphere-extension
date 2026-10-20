@@ -1,4 +1,5 @@
 import type { Claim, ClaimGroup, SentenceMatch } from "../shared/types";
+import { rankGroups } from "./claimRank";
 
 /**
  * Shared in-memory state for the content script. Both the light-DOM highlighter
@@ -23,11 +24,19 @@ export interface SentenceRecord extends SentenceMatch {
   /** Selection touched only fluff — panel shows the no-claim empty state. */
   fluffNotice?: boolean;
   /**
-   * Selection touched several claims — groupIds to choose between (best
-   * selection-affinity first). The panel renders a chooser instead of
-   * create/stake until one is picked.
+   * Several claims to choose between — the panel renders a chooser instead of
+   * create/stake until one is picked. Set when a text selection touched several
+   * claims (best selection-affinity first), and when a page sentence itself
+   * states several claims (ranked by rankGroups; the record's own claim/groupId
+   * is the first of them, which is what the underline and hover card show).
    */
   choices?: string[];
+  /**
+   * Create flow started from a painted sentence: that sentence's record id. When
+   * the new claim lands it joins that sentence's claim list (choices) rather
+   * than painting a second underline over the same words.
+   */
+  sourceSentenceId?: string;
   /**
    * Launcher list view: the panel lists ALL of the page's on-chain claims.
    * Deliberately not a `choices` snapshot — the list is read from `groups` on
@@ -57,6 +66,11 @@ export const hooks: {
   analyzeParagraph: ((el: HTMLElement) => Promise<void>) | null;
 } = { analyzeParagraph: null };
 
+/** The known groups among `ids`, in display order (see claimRank.ts). */
+export function rankedGroups(ids: string[]): ClaimGroup[] {
+  return rankGroups(ids.map((id) => groups.get(id)).filter((g): g is ClaimGroup => !!g));
+}
+
 /** All painted sentence ids belonging to a group (page order). */
 export function groupSentenceIds(groupId: string): string[] {
   return groups.get(groupId)?.sentenceIds.filter((id) => records.has(id)) ?? [];
@@ -74,7 +88,18 @@ export function applyClaimToGroup(groupId: string, claim: Claim): string[] {
   const ids = groupSentenceIds(groupId);
   for (const id of ids) {
     const r = records.get(id);
-    if (r) {
+    if (!r) continue;
+    if (r.choices && r.choices.length > 1) {
+      // A sentence stating several claims shows its top-ranked one; stake moved,
+      // so re-rank rather than let whichever group was touched last win.
+      const [primary] = rankedGroups(r.choices);
+      if (!primary) continue;
+      r.groupId = primary.groupId;
+      r.canonicalText = primary.canonicalText;
+      r.claim = primary.claim;
+      r.status = primary.status;
+      r.matchScore = primary.matchScore;
+    } else {
       r.claim = claim;
       r.status = group.status;
     }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { tokens } from "../../shared/tokens";
+import { fmtVsp } from "../../shared/format";
+import { getRelayConfig } from "../../wallet/relayConfig";
 import type { Claim } from "../../shared/types";
 import type { StakeSide } from "../store";
 import { api } from "../../api";
@@ -52,7 +54,7 @@ export function ClaimValidator({
    */
   onResolved: (claim: Claim, opts?: { noPaint?: boolean }) => void;
 }) {
-  const { connected, address, connect, signer, mode } = useWallet();
+  const { connected, address, balance, connect, signer, mode } = useWallet();
   const writeStage = useWriteStage();
   const feeQuote = useFeeQuote();  // patch_ext_gas_fee: the relay fee for this action, shown while signing
   const [text, setText] = useState(initialText);
@@ -63,6 +65,14 @@ export function ClaimValidator({
   const [side, setSide] = useState<StakeSide>(intentSide ?? "support");
   const [stakeAmount, setStakeAmount] = useState(intentSide ? String(DEFAULT_STAKE) : "0");
   const wantStake = !!intentSide;
+
+  // The posting fee the registry pulls on create (from /relay/config; 1 VSP today).
+  const [postingFee, setPostingFee] = useState(1);
+  useEffect(() => {
+    getRelayConfig()
+      .then((c) => setPostingFee(Number(BigInt(c.postingFeeWei)) / 1e18))
+      .catch(() => {});
+  }, []);
 
   const [wellFormed, setWellFormed] = useState<RowState>(okRow);
   const [verifiable, setVerifiable] = useState<RowState>(okRow);
@@ -281,14 +291,29 @@ export function ClaimValidator({
             const busy =
               phase === "connecting" || phase === "creating" || phase === "staking" || walletLoading;
             if (verdict === "duplicate") return null;
-            const enabled = canSubmit && !busy;
             const amt = parseFloat(stakeAmount) || 0;
+            // What creating costs the wallet: the posting fee, plus the opening stake if any.
+            const stake = wantStake ? amt : 0;
+            const cost = postingFee + stake;
+            const have = balance ?? 0;
+            const after = have - cost;
+            const insufficient = connected && !walletLoading && after < -1e-9;
+            const enabled = canSubmit && !busy && !insufficient;
             const idleLabel = !connected
               ? "Connect & create"
               : wantStake && amt > 0
               ? `Create & ${side === "challenge" ? "challenge" : "support"} ${amt} VSP`
               : "Create claim";
+            const breakdown = `${fmtVsp(postingFee)} posting fee${stake > 0 ? ` + ${fmtVsp(stake)} stake` : ""}`;
             return (
+              <>
+                {connected && !walletLoading && (
+                  <div style={{ fontSize: 11, marginTop: 10, color: insufficient ? tokens.challenge : tokens.muted }}>
+                    {insufficient
+                      ? `Not enough VSP: creating costs ${fmtVsp(cost)} VSP (${breakdown}), you have ${fmtVsp(have)}.`
+                      : `Costs ${fmtVsp(cost)} VSP (${breakdown}) · ${fmtVsp(after)} VSP left of ${fmtVsp(have)}${mode === "relay" ? " (before the relay fee)" : ""}`}
+                  </div>
+                )}
               <button
                 onClick={submit}
                 disabled={!enabled}
@@ -320,6 +345,7 @@ export function ClaimValidator({
                   idleLabel
                 )}
               </button>
+              </>
             );
           })()}
         </>

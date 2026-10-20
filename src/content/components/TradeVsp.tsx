@@ -285,7 +285,7 @@ export function TradeVsp({ side, onTraded }: { side: TradeSide; onTraded?: (out:
             <div>
               Min. received {fmtAmount(quote.minOutHuman)} {quote.symbolOut} ({(quote.slippageBps / 100).toFixed(1)}% slippage)
               {quote.steps > 1 &&
-                (side === "buy" ? " · 2 confirmations: approve USDC, then swap" : " · 2 confirmations: one-time VSP approval, then swap")}
+                ` · 2 confirmations this once: approve ${side === "buy" ? "USDC" : "VSP"} for the router, then swap`}
               {quote.steps === 1 && " · 1 confirmation"}
             </div>
           </>

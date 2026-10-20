@@ -31,11 +31,15 @@ export function StakeWidget({
   const [target, setTarget] = useState(initialSide === "challenge" ? "-10" : initialSide === "support" ? "10" : "0");
   const [phase, setPhase] = useState<"idle" | "connecting" | "submitting">("idle");
   const [err, setErr] = useState<string | null>(null);
+  // The user's current net position (support − challenge) on this claim; the
+  // wallet only moves the difference between it and the target.
+  const [position, setPosition] = useState(0);
 
   useEffect(() => {
     if (!connected || !address) return;
     api.getUserStake(claim.postId, address).then((s) => {
       const net = s.userSupport - s.userChallenge;
+      setPosition(net);
       // An existing position wins over the pill-seeded default.
       if (net !== 0) setTarget(net.toFixed(2));
     });
@@ -46,6 +50,11 @@ export function StakeWidget({
   const sideColor = targetVal > 0 ? tokens.support : targetVal < 0 ? tokens.challenge : tokens.muted;
   const walletLoading = connected && mode === "loading";
   const busy = phase !== "idle" || walletLoading;
+  // VSP this change moves: into escrow when positive, back to the wallet when negative.
+  const have = balance ?? 0;
+  const escrowDelta = Math.abs(targetVal) - Math.abs(position);
+  const after = have - escrowDelta;
+  const insufficient = connected && !walletLoading && after < -1e-9;
 
   async function apply() {
     if (phase !== "idle") return;
@@ -117,7 +126,7 @@ export function StakeWidget({
         />
         <button onClick={() => setTarget((targetVal + 1).toFixed(2))} style={stepBtn}>+</button>
         <span style={{ fontSize: 12, fontWeight: 700, color: sideColor, minWidth: 74 }}>VSP · {side}</span>
-        <button onClick={apply} disabled={busy} style={{ ...applyBtn, opacity: busy ? 0.6 : 1 }}>
+        <button onClick={apply} disabled={busy || insufficient} style={{ ...applyBtn, opacity: busy || insufficient ? 0.6 : 1 }}>
           {phase === "submitting" ? (
             (writeStageLabel(writeStage) ?? "…") + (feeQuote != null && writeStage === "awaiting-wallet" ? ` fee ${feeQuote.toFixed(3)} VSP` : "")
           ) : phase === "connecting" || walletLoading ? (
@@ -133,6 +142,15 @@ export function StakeWidget({
         <span>Positive supports · negative challenges · 0 withdraws</span>
         {connected && <span>Balance: {fmtVsp(balance)} VSP</span>}
       </div>
+      {connected && !walletLoading && escrowDelta !== 0 && (
+        <div style={{ fontSize: 11, marginTop: 4, color: insufficient ? tokens.challenge : tokens.muted }}>
+          {insufficient
+            ? `Not enough VSP: this position needs ${fmtVsp(escrowDelta)} more, you have ${fmtVsp(have)}.`
+            : escrowDelta > 0
+              ? `Moves ${fmtVsp(escrowDelta)} VSP into escrow · ${fmtVsp(after)} VSP left in your wallet${mode === "relay" ? " (before the relay fee)" : ""}`
+              : `Returns ${fmtVsp(-escrowDelta)} VSP to your wallet · ${fmtVsp(after)} VSP after`}
+        </div>
+      )}
       {err && (
         <div style={{ marginTop: 8, fontSize: 12, color: tokens.challenge, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "6px 8px" }}>
           {err}

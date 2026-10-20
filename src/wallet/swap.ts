@@ -27,10 +27,12 @@ import {
  *
  *   buy  with AVAX   swapExact{ETH|AVAX}ForTokens, path [WAVAX, USDC, VSP], AVAX as
  *                    msg.value — no approval, one wallet prompt.
- *   buy  with USDC   swapExactTokensForTokens, path [USDC, VSP]; exact USDC approval first.
+ *   buy  with USDC   swapExactTokensForTokens, path [USDC, VSP].
  *   sell for  AVAX   swapExactTokensFor{ETH|AVAX}, path [VSP, USDC, WAVAX].
  *   sell for  USDC   swapExactTokensForTokens, path [VSP, USDC].
- *                    Sells use a one-time (max) VSP approval to the router.
+ *                    Token in (USDC or VSP) needs a one-time standing approval to the
+ *                    router: the first such trade on a wallet is approve + swap, every
+ *                    later one is a single transaction.
  *
  * The user pays gas on every trade (no relay for third-party pools).
  */

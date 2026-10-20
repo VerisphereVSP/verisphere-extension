@@ -14,6 +14,7 @@ import {
   type PoolRoutes,
 } from "../src/wallet/swapVerify.ts";
 import { MAX_UINT256 } from "../src/wallet/swapMath.ts";
+import { SELECTORS, encodeCall } from "../src/wallet/abi.ts";
 
 const USER = "0x02756B3aAa894d078842360715d6192E30213593";
 const ROUTES: PoolRoutes = {
@@ -102,6 +103,28 @@ test("a real Fuji build (buy 0.1 AVAX) verifies byte for byte: no approval, AVAX
   assert.equal(v.valueWei, 100_000_000_000_000_000n);
   assert.equal(v.minOut, 165_064_008_953_366_941n);
   assert.equal(v.approve, null);
+});
+
+test("a USDC buy asks for the one-time standing USDC approval", () => {
+  // Reuse the sell build's shape with a USDC-in path: only the approval policy is under test here.
+  const quote = { ...SELL_USDC.quote, side: "buy" as const, payWith: "USDC" as const, symbolIn: "USDC" as const, symbolOut: "VSP" as const, path: [ROUTES.tokens.usdc, ROUTES.tokens.vsp], amountIn: "5000000", amountInHuman: 5, minOut: "24442428401875682993" };
+  const build: PoolBuild = {
+    ...SELL_USDC,
+    path: [ROUTES.tokens.usdc, ROUTES.tokens.vsp],
+    amountIn: "5000000",
+    minOut: "24442428401875682993",
+    quote,
+    approve: { token: ROUTES.tokens.usdc, spender: ROUTES.router, amount: "5000000" },
+    data: encodeCall(SELECTORS.swapExactTokensForTokens, [
+      { t: "uint256", v: 5_000_000n },
+      { t: "uint256", v: 24_442_428_401_875_682_993n },
+      { t: "address[]", v: [ROUTES.tokens.usdc, ROUTES.tokens.vsp] },
+      { t: "address", v: USER },
+      { t: "uint256", v: BigInt(SELL_USDC.deadline) },
+    ]),
+  };
+  const v = verifyPoolBuild({ routes: ROUTES, side: "buy", currency: "USDC", user: USER, amountHuman: 5, quote, build, nowS: NOW });
+  assert.deepEqual(v.approve, { token: ROUTES.tokens.usdc, amount: MAX_UINT256 });
 });
 
 test("a real Fuji build (sell 10 VSP for USDC) verifies and asks for the one-time max VSP approval", () => {

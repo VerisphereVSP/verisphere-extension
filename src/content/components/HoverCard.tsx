@@ -1,6 +1,6 @@
 import { tokens } from "../../shared/tokens";
 import { fmtVsp } from "../../shared/format";
-import type { SentenceRecord } from "../store";
+import { rankedGroups, type SentenceRecord } from "../store";
 
 const CARD_WIDTH = 360;
 const PANEL_WIDTH = 380;
@@ -34,6 +34,8 @@ export function HoverCard({ rec, rect, panelOpen = false }: { rec: SentenceRecor
   const rightBound = window.innerWidth - (panelOpen ? PANEL_WIDTH : 0) - 8;
   const left = Math.max(8, Math.min(rect.left, rightBound - CARD_WIDTH));
   const c = rec.claim;
+  // The sentence's other claims (a multi-claim sentence shows its top-ranked one here).
+  const others = rec.choices && rec.choices.length > 1 ? rankedGroups(rec.choices).filter((g) => g.groupId !== rec.groupId) : [];
 
   return (
     <div
@@ -76,7 +78,24 @@ export function HoverCard({ rec, rect, panelOpen = false }: { rec: SentenceRecor
             <span style={{ color: tokens.support }}>▲ {fmtVsp(c.supportStake)} support</span>
             <span style={{ color: tokens.challenge }}>▼ {fmtVsp(c.challengeStake)} challenge</span>
           </div>
-          <div style={{ fontSize: 11, color: tokens.faint, marginTop: 8 }}>Click to open · stake · view evidence</div>
+          {others.length > 0 ? (
+            <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${tokens.line}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: tokens.brand, marginBottom: 4 }}>
+                This sentence states {others.length + 1} claims
+              </div>
+              {others.map((g) => (
+                <div key={g.groupId} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, color: tokens.muted, lineHeight: 1.4, marginBottom: 2 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.canonicalText}</span>
+                  <span style={{ whiteSpace: "nowrap", color: tokens.faint }}>
+                    {g.claim ? `${g.claim.supportStake - g.claim.challengeStake > 0 ? "+" : ""}${fmtVsp(g.claim.supportStake - g.claim.challengeStake)} VSP` : "not staked yet"}
+                  </span>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: tokens.faint, marginTop: 6 }}>Click to choose which one to stake on</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: tokens.faint, marginTop: 8 }}>Click to open · stake · view evidence</div>
+          )}
         </div>
       ) : null}
     </div>
