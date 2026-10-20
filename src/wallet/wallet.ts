@@ -6,6 +6,9 @@ import { providerRequest } from "./bridge";
 import { ensureCorrectChain } from "./network";
 
 /** Route writes based on balances (see WriteMode). */
+/** How often balances are re-read while a wallet is connected. */
+const BALANCE_POLL_MS = 15_000;
+
 export function writeMode(s: WalletState): WriteMode {
   if (!s.connected || !s.address) return "disconnected";
   if (!s.balancesLoaded) return "loading";
@@ -27,6 +30,8 @@ export function writeMode(s: WalletState): WriteMode {
  * lives on the page.
  */
 export interface Wallet extends TypedDataSigner {
+  /** Re-read VSP + AVAX balances (e.g. after buying VSP) so writeMode reflects the wallet. */
+  refresh(): Promise<void>;
   getState(): WalletState;
   /** Connect; pass an EIP-6963 rdns to pick a specific wallet (persisted). */
   connect(rdns?: string): Promise<WalletState>;
@@ -69,6 +74,30 @@ class InjectedWallet implements Wallet {
   }
   private subs = new Set<(s: WalletState) => void>();
 
+  // Balances used to be read once at connect, so AVAX or VSP arriving later (a
+  // transfer from another wallet, a purchase in the web app) never showed until
+  // a page reload. While connected we re-read every BALANCE_POLL_MS and whenever
+  // the tab regains focus; writeMode follows, so the panel upgrades on its own.
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshing = false;
+  private onWake = () => {
+    if (document.visibilityState !== "hidden") void this.refresh();
+  };
+
+  private startWatching() {
+    if (this.pollTimer) return;
+    this.pollTimer = setInterval(this.onWake, BALANCE_POLL_MS);
+    window.addEventListener("focus", this.onWake);
+    document.addEventListener("visibilitychange", this.onWake);
+  }
+
+  private stopWatching() {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = null;
+    window.removeEventListener("focus", this.onWake);
+    document.removeEventListener("visibilitychange", this.onWake);
+  }
+
   getState() {
     return this.state;
   }
@@ -92,6 +121,7 @@ class InjectedWallet implements Wallet {
       /* proceed; balances may reflect the wrong chain until switched */
     }
     await this.refreshBalances(address);
+    this.startWatching();
     return this.state;
   }
 
@@ -113,6 +143,7 @@ class InjectedWallet implements Wallet {
       this.state = { ...this.state, connected: true, address, balance: null, avax: null, balancesLoaded: false };
       this.emit();
       await this.refreshBalances(address);
+      this.startWatching();
     } catch {
       /* silent — the Connect button still works */
     }
@@ -122,6 +153,7 @@ class InjectedWallet implements Wallet {
     // Injected wallets have no programmatic disconnect; drop our local session
     // and stop auto-restoring until the user connects again.
     void chrome.storage.local.remove("walletConnected");
+    this.stopWatching();
     this.state = { ...this.state, connected: false, address: null, balance: null, avax: null, balancesLoaded: false };
     this.emit();
   }
@@ -142,6 +174,16 @@ class InjectedWallet implements Wallet {
   subscribe(cb: (s: WalletState) => void) {
     this.subs.add(cb);
     return () => this.subs.delete(cb);
+  }
+
+  async refresh(): Promise<void> {
+    if (!this.state.connected || !this.state.address || this.refreshing) return;
+    this.refreshing = true;
+    try {
+      await this.refreshBalances(this.state.address);
+    } finally {
+      this.refreshing = false;
+    }
   }
 
   private emit() {

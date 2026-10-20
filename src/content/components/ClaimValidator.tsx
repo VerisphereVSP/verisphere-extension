@@ -200,6 +200,20 @@ export function ClaimValidator({
     }
   }
 
+  // No VSP: the checks and stake controls are moot until the wallet holds some, so
+  // the buy flow takes the panel. The checks keep running underneath; once a
+  // purchase lands, writeMode flips and the normal form appears with them done.
+  // (A duplicate verdict is still shown — the user should stake the existing claim.)
+  if (connected && mode === "needs-vsp" && verdict !== "duplicate") {
+    return (
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: tokens.brand, marginBottom: 8 }}>Create a claim</div>
+        <div style={pendingClaim}>{text}</div>
+        <BuyVspCta action="create a claim" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, color: tokens.brand, marginBottom: 8 }}>
@@ -266,16 +280,6 @@ export function ClaimValidator({
             const walletLoading = connected && mode === "loading";
             const busy =
               phase === "connecting" || phase === "creating" || phase === "staking" || walletLoading;
-            // Only reveal the Buy-VSP CTA once balances are known — never during
-            // the connect/loading window (avoids the flash).
-            const showBuyVsp = verdict !== "duplicate" && connected && mode === "needs-vsp";
-            if (showBuyVsp) {
-              return (
-                <div style={{ marginTop: 12 }}>
-                  <BuyVspCta action="create a claim" />
-                </div>
-              );
-            }
             if (verdict === "duplicate") return null;
             const enabled = canSubmit && !busy;
             const amt = parseFloat(stakeAmount) || 0;
@@ -538,6 +542,17 @@ function toRow(c: { severity: "ok" | "warn" | "error"; message?: string }): RowS
 function banner(bg: string, border: string): React.CSSProperties {
   return { background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: 10 };
 }
+const pendingClaim: React.CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.45,
+  color: tokens.ink,
+  padding: 10,
+  marginBottom: 12,
+  border: `1px solid ${tokens.line}`,
+  borderRadius: 8,
+  background: tokens.surfaceAlt,
+};
+
 const ghostBtn: React.CSSProperties = {
   padding: "3px 10px", borderRadius: 6, border: `1px solid ${tokens.line}`,
   background: tokens.surface, fontSize: 12, fontWeight: 600, color: tokens.brand, cursor: "pointer",

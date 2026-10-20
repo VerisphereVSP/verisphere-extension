@@ -50,7 +50,7 @@ async function sendTx(to: string, data: string): Promise<string> {
   return providerRequest<string>("eth_sendTransaction", [{ from: from(), to, data }]);
 }
 
-async function waitForReceipt(hash: string, timeoutMs = 60_000): Promise<void> {
+export async function waitForReceipt(hash: string, timeoutMs = 60_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const r = await providerRequest<{ status?: string } | null>("eth_getTransactionReceipt", [hash]);

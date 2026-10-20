@@ -10,6 +10,8 @@ import { VSBar, VSChip } from "./VS";
 import { StakeWidget } from "./StakeWidget";
 import { ClaimValidator } from "./ClaimValidator";
 import { Dots } from "./Dots";
+import { TradeVsp } from "./TradeVsp";
+import type { TradeSide } from "../../wallet/swapMath";
 import { useWallet } from "../../wallet/useWallet";
 
 /** The docked workbench panel. Read detail + evidence, stake, or create. */
@@ -20,6 +22,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const [claim, setClaim] = useState<Claim | undefined>(rec?.claim);
   const [edges, setEdges] = useState<{ incoming: Edge[]; outgoing: Edge[] }>({ incoming: [], outgoing: [] });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [trade, setTrade] = useState<TradeSide | null>(null); // in-panel Buy / Sell VSP card
   const isCreate = rec?.status === "eligible" && !claim && !rec?.listAll;
   const intent = createIntents.get(sentenceId);
 
@@ -113,6 +116,16 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
                   {/* Click-away backdrop (kept inside the shadow overlay). */}
                   <div style={backdrop} onClick={() => setMenuOpen(false)} />
                   <div style={menu} role="menu">
+                    <button
+                      style={menuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setTrade((t) => t ?? "buy");
+                      }}
+                    >
+                      Buy / sell VSP
+                    </button>
                     <a
                       href={env.portfolioUrl}
                       target="_blank"
@@ -174,6 +187,22 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
           <button onClick={onClose} style={closeBtn} aria-label="Close">×</button>
         </div>
       </div>
+
+      {trade && connected && (
+        <div style={tradeCard}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            {(["buy", "sell"] as const).map((t) => (
+              <button key={t} onClick={() => setTrade(t)} style={tradeTab(trade === t)}>
+                {t === "buy" ? "Buy VSP" : "Sell VSP"}
+              </button>
+            ))}
+            <button onClick={() => setTrade(null)} style={{ ...tradeTab(false), marginLeft: "auto", flex: "0 0 auto" }} aria-label="Close trade">
+              ×
+            </button>
+          </div>
+          <TradeVsp side={trade} />
+        </div>
+      )}
 
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
         {rec.listAll || (rec.choices && rec.choices.length > 0) ? (
@@ -484,6 +513,26 @@ const menu: React.CSSProperties = {
   flexDirection: "column",
   zIndex: tokens.z + 1,
 };
+const tradeCard: React.CSSProperties = {
+  margin: "10px 12px 0",
+  padding: 12,
+  background: "#eef2ff",
+  border: "1px solid #c7d2fe",
+  borderRadius: 8,
+};
+function tradeTab(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: `1px solid ${active ? tokens.brand : tokens.line}`,
+    background: active ? tokens.brand : tokens.surface,
+    color: active ? "#fff" : tokens.ink,
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}
 const menuItem: React.CSSProperties = {
   display: "block",
   width: "100%",

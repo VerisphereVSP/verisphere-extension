@@ -26,6 +26,7 @@ const ALLOWED_METHODS = new Set<string>([
   "eth_accounts",
   "eth_chainId",
   "eth_getBalance",
+  "eth_call", // read-only: ERC-20 balances/allowances and router quotes for the in-panel Buy VSP flow
   "eth_getTransactionReceipt",
   "eth_sendTransaction",
   "eth_signTypedData_v4",
