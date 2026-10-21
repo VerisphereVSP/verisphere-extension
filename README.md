@@ -49,6 +49,12 @@ Then load `dist/` (or the dev server output) via
 `chrome://extensions → Load unpacked`, and open e.g.
 `https://en.wikipedia.org/wiki/Bitcoin`.
 
+## Releases
+
+- **0.1.2** (2026-10-21) — Buy / Sell VSP inside the panel (AVAX or USDC; the app plans the swap, the extension verifies every field before the wallet signs), a sentence that states several claims offers all of them (app `/api/claims/locate` multi-claim), usability fixes. Relay-fee permits now name the FeeCollector contract (server-side; no client change).
+- **0.1.1** (2026-10-16) — standing allowances: one wallet prompt per action in steady state.
+- **0.1.0** — first store build.
+
 ## Publish (Chrome Web Store) <!-- patch_ext_release -->
 
 ```bash

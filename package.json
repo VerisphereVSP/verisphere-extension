@@ -1,7 +1,7 @@
 {
   "name": "verisphere-extension",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Verisphere \u2014 a truth-staking overlay for Wikipedia.",
   "scripts": {
