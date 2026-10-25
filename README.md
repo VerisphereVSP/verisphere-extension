@@ -51,6 +51,7 @@ Then load `dist/` (or the dev server output) via
 
 ## Releases
 
+- **0.1.3** (2026-10-25) — mainnet store build (app.verisphere.co). Same code as 0.1.2; the package published as 0.1.2 had been built against the test network, so it showed Fuji balances. patch_ext_v013
 - **0.1.2** (2026-10-21) — Buy / Sell VSP inside the panel (AVAX or USDC; the app plans the swap, the extension verifies every field before the wallet signs), a sentence that states several claims offers all of them (app `/api/claims/locate` multi-claim), usability fixes. Relay-fee permits now name the FeeCollector contract (server-side; no client change).
 - **0.1.1** (2026-10-16) — standing allowances: one wallet prompt per action in steady state.
 - **0.1.0** — first store build.
