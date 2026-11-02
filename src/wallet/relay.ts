@@ -225,3 +225,30 @@ export async function relayCreateClaim(text: string): Promise<{ postId: number |
   if (res.status === "duplicate_claim" && res.claim) return { postId: res.claim.post_id, deduped: true };
   return { postId: res.claim?.post_id ?? null, deduped: false };
 }
+
+// ── patch_ext_share: sponsored invitations (app /api/invites) ──────────────────────────────────────
+// Issuing = one EIP-2612 permit naming the app's escrow address for the amount, then the app pulls the VSP and
+// returns the code once. The same signPermit the stake flow uses; the escrow address comes from the app.
+
+export interface IssuedInvitation { code: string; code_hash: string; amount_vsp: string; expires_at: string; escrow_tx: string; sponsor: string; post_id?: number | null }
+
+export async function issueInvitation(opts: { amountVsp: string; expiresDays: number; postId?: number | null }): Promise<IssuedInvitation> {
+  const owner = wallet.getState().address;
+  if (!owner) throw new Error("Connect a wallet first");
+  const cfgRes = await bgFetch<{ escrow_address: string; min_vsp: string; max_vsp: string; max_days: number }>(`${appBase}/invites/config`);
+  if (!cfgRes.ok || !cfgRes.json?.escrow_address) throw new Error(cfgRes.error ?? "Invitations are not available right now");
+  const inv = cfgRes.json;
+  const amount = Number(opts.amountVsp);
+  if (!(amount >= Number(inv.min_vsp) && amount <= Number(inv.max_vsp))) throw new Error(`Amount must be between ${inv.min_vsp} and ${inv.max_vsp} VSP`);
+  if (!(opts.expiresDays >= 1 && opts.expiresDays <= inv.max_days)) throw new Error(`Expiry must be between 1 and ${inv.max_days} days`);
+  const cfg = await getConfig();
+  const valueWei = BigInt(Math.round(amount * 1e6)) * 10n ** 12n;  // 6 decimals of VSP precision is plenty here
+  const nonce = await permitNonce(cfg.token.address, owner);
+  const permit = await signPermit(cfg, owner, inv.escrow_address, valueWei, nonce);
+  const res = await bgFetch<IssuedInvitation & { detail?: string }>(`${appBase}/invites`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount_vsp: String(amount), expires_days: opts.expiresDays, permit, post_id: opts.postId ?? null }),
+  });
+  if (!res.ok || !res.json?.code) throw new Error(res.json?.detail ?? res.error ?? `invite ${res.status}`);
+  return res.json;
+}

@@ -10,6 +10,8 @@
  * The target host MUST be listed in `host_permissions` (see manifest.ts).
  */
 
+import { checkInTab, installCheckMenu, wireCheck } from "./check"; // patch_ext_check
+
 interface VrFetchMsg {
   type: "vr-fetch";
   url: string;
@@ -26,20 +28,29 @@ interface VrFetchResp {
 const ALLOWED_ORIGINS = new Set<string>(
   [import.meta.env.VITE_APP_API_BASE ?? "https://test.verisphere.co/api"].map((u) => new URL(u).origin),
 );
+// patch_ext_check: the local harness (.env.e2e) names one plain-http host the worker may call; the store build names
+// none, so this stays https-only there (and the release check sees no dev host in the bundle).
+const HTTP_API_HOST = import.meta.env.VITE_ALLOW_HTTP_API_HOST ?? "";
+const LOCAL_HARNESS = HTTP_API_HOST !== "";
 function isAllowedUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === "https:" && ALLOWED_ORIGINS.has(u.origin);
+    if (!ALLOWED_ORIGINS.has(u.origin)) return false;
+    return u.protocol === "https:" || (LOCAL_HARNESS && u.protocol === "http:" && u.hostname === HTTP_API_HOST);
   } catch {
     return false;
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.local.get("enabled").then((v) => {
     if (typeof v.enabled !== "boolean") chrome.storage.local.set({ enabled: true });
   });
+  installCheckMenu(); // patch_ext_check
+  // patch_ext_check: first run — one page that shows the one gesture (select → right-click → Check on Verisphere)
+  if (details.reason === "install") void chrome.runtime.openOptionsPage();
 });
+wireCheck(); // patch_ext_check: listeners register at every worker start
 
 chrome.runtime.onMessage.addListener((msg: VrFetchMsg, _sender, sendResponse) => {
   if (msg?.type !== "vr-fetch") return; // not ours
@@ -73,3 +84,6 @@ chrome.runtime.onMessage.addListener((msg: VrFetchMsg, _sender, sendResponse) =>
 
   return true; // keep the message channel open for the async sendResponse
 });
+
+// patch_ext_check: the local harness drives the same path the context menu takes (never in the store build)
+if (LOCAL_HARNESS) (globalThis as unknown as { __vrCheckInTab?: typeof checkInTab }).__vrCheckInTab = checkInTab;

@@ -93,6 +93,9 @@ export interface ArticleResolveRequest {
   phrases: string[];
   /** Flat sentences currently in view to locate against candidate claims. */
   sentences: { sentenceId: string; text: string }[];
+  /** patch_ext_check: one sentence picked by the reader on any page — the app widens the candidate set to the
+   *  whole corpus instead of this page's phrases. */
+  check?: boolean;
 }
 
 export interface ArticleResolveResult {

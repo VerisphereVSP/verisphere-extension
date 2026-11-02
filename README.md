@@ -1,12 +1,16 @@
 # Verisphere extension
 
-The Verisphere truth-staking overlay for Wikipedia (MV3 browser extension).
+Truth-staking for the web (MV3 browser extension).
 
-Open any Wikipedia article and the extension highlights the sentences that map
-to on-chain Verisphere **claims**, colored by their **Verity Score**. Hover to
-preview, click to open the side panel, then **stake** on a claim or **create**
-a new one from a sentence — all gasless via the Verisphere relay (the wallet
-only signs; it never pays gas).
+**Check any sentence on any site** (0.1.4): select it → right-click → *Check on Verisphere* (or the toolbar button).
+The side panel opens with the claims it states and where the stake stands on each — stake, create the claim if nobody
+has, share it with the standing and a link, or put VSP on the table for a friend. The overlay is injected into that tab
+only, on that gesture (`activeTab` + `scripting`); no site is read until the reader asks.
+
+On English Wikipedia the extension also highlights the sentences that map to on-chain **claims**, colored by their
+**Verity Score**. Hover to preview, click to open the side panel, then **stake** on a claim or **create** a new one from
+a sentence — all gasless via the Verisphere relay (the wallet only signs; it never pays gas). Staking in the panel uses
+the page's MetaMask; *Back it in the app* hands a passkey user to the app's Start sheet (`/claims?post=&side=&start=1`).
 
 ## Status: FE-first scaffold
 
@@ -51,6 +55,12 @@ Then load `dist/` (or the dev server output) via
 
 ## Releases
 
+- **0.1.4** (2026-11-02) — check any sentence on any site (context menu + toolbar; on-demand injection under
+  activeTab, no new host permissions; the app's `/claims/locate` in `check` mode matches against the whole corpus);
+  share from the panel (snapshot text, link, invitation); *Back it in the app* hand-off to the Start sheet; first-run
+  page (also the options page); the app's install button is hidden by a marker on app.verisphere.co. Name →
+  *Verisphere — Truth-staking for the web*. patch_ext_v014
+
 - **0.1.3** (2026-10-25) — mainnet store build (app.verisphere.co). Same code as 0.1.2; the package published as 0.1.2 had been built against the test network, so it showed Fuji balances. patch_ext_v013
 - **0.1.2** (2026-10-21) — Buy / Sell VSP inside the panel (AVAX or USDC; the app plans the swap, the extension verifies every field before the wallet signs), a sentence that states several claims offers all of them (app `/api/claims/locate` multi-claim), usability fixes. Relay-fee permits now name the FeeCollector contract (server-side; no client change).
 - **0.1.1** (2026-10-16) — standing allowances: one wallet prompt per action in steady state.
@@ -69,7 +79,11 @@ load `dist/` unpacked once and stake on a live Wikipedia page against production
 
 - Privacy policy URL: `https://app.verisphere.co/docs/viewer.html?file=privacy.md` (covers the extension, §1).
 - Support contact: `support@verisphere.co`. Homepage: `https://verisphere.co`.
-- Permissions justification: `storage` (the on/off switch and selected wallet), `activeTab` (none beyond the content
-  script), host `*.wikipedia.org` (where the overlay runs), host `app.verisphere.co/api` (claims, scores, relay).
-  No remote code; no RPC host — chain reads and signatures go through the page's injected wallet.
-- Single purpose: highlight stakeable factual claims on Wikipedia and let the reader stake on them via Verisphere.
+- Permissions justification (0.1.4): `storage` (the on/off switch and selected wallet); `contextMenus` (the
+  *Check on Verisphere* item on a text selection); `activeTab` + `scripting` (inject the overlay into the current tab
+  only when the reader invokes that item or the toolbar button — never on page load, never on other tabs); host
+  `*.wikipedia.org` (automatic underlining of claims on articles); host `app.verisphere.co` (the API for claims,
+  scores and the relay, and a one-line marker on the app's own pages so it can hide its install button). No remote
+  code; no RPC host — chain reads and signatures go through the page's injected wallet.
+- Single purpose: let the reader check a factual claim they are reading against Verisphere — the claims it states and
+  the stake behind each side — and take a side on it.
