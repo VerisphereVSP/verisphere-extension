@@ -26,6 +26,8 @@ export interface SentenceRecord extends SentenceMatch {
   /** patch_ext_check: this record came from "Check on Verisphere" (any page): the panel says so and the quote is
    *  the reader's selection, not a located sentence. */
   checked?: boolean;
+  /** patch_ext_claim_resolve: where the checked text was selected, for the resolver's paragraph (not painted). */
+  contextEl?: HTMLElement;
   /**
    * Several claims to choose between — the panel renders a chooser instead of
    * create/stake until one is picked. Set when a text selection touched several

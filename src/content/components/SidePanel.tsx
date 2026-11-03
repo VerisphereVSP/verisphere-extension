@@ -7,6 +7,7 @@ import { api } from "../../api";
 import { records, groups, createIntents, applyClaimToGroup, emit, pageStatus, rankedGroups, type SentenceRecord } from "../store";
 import { SharePanel } from "./SharePanel";  // patch_ext_share
 import { handoffUrl } from "../check";  // patch_ext_check
+import { contextFor } from "../../shared/pageContext";  // patch_ext_claim_resolve
 import { repaintSentence, repaintGroup } from "../highlighter";
 import { VSBar, VSChip } from "./VS";
 import { StakeWidget } from "./StakeWidget";
@@ -229,7 +230,8 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
                 Rewritten as a standalone claim — edit below if needed.
               </div>
             )}
-            <ClaimValidator initialText={rec.canonicalText ?? rec.text} intentSide={intent} onResolved={applyClaim} />
+            <ClaimValidator initialText={rec.canonicalText ?? rec.text} intentSide={intent} onResolved={applyClaim}
+              context={contextFor(rec.contextEl ?? (rec.el !== document.body ? rec.el : null), rec.text)} />  {/* patch_ext_claim_resolve */}
           </>
         ) : claim ? (
           <>

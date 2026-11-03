@@ -55,6 +55,11 @@ Then load `dist/` (or the dev server output) via
 
 ## Releases
 
+- **0.1.5** (2026-11-03) — a claim must stand alone: the create flow sends the page title and the paragraph around the
+  text to the app's `/api/claims/resolve`, which replaces pronouns and bare references ("It" → "The office printer",
+  "Early cases" → "Early COVID-19 cases") and says what it changed; "Stands alone" is the first check, and creation is
+  blocked while context is missing ("Say what 'It' refers to"). patch_ext_claim_resolve
+
 - **0.1.4** (2026-11-02) — check any sentence on any site (context menu + toolbar; on-demand injection under
   activeTab, no new host permissions; the app's `/claims/locate` in `check` mode matches against the whole corpus);
   share from the panel (snapshot text, link, invitation); *Back it in the app* hand-off to the Start sheet; first-run
