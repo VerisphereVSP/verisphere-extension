@@ -37,6 +37,8 @@ for (const f of walk(dist)) {
 }
 const version = manifest.version;
 if (!/^\d+\.\d+\.\d+$/.test(version)) fail(`manifest version '${version}' is not x.y.z`);
+if ((manifest.description ?? "").length > 132) fail(`manifest description is ${manifest.description.length} characters; the store allows 132`);
+if ((manifest.name ?? "").length > 75) fail(`manifest name is ${manifest.name.length} characters; the store allows 75`);
 
 if (process.env.RELEASE_NO_ZIP) { console.log(`RELEASE CHECKS OK (no zip): v${version}, api ${apiOrigin}, hosts ${JSON.stringify(manifest.host_permissions)}`); process.exit(0); }
 mkdirSync("release", { recursive: true });

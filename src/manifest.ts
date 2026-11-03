@@ -25,8 +25,8 @@ export default defineManifest((env) => {
   manifest_version: 3,
   name: "Verisphere — Truth-staking for the web",
   version: pkgVersion,
-  description:
-    "Select any sentence on any site and check it on Verisphere: the claims it states, where the stake stands, and your chance to take a side.",
+  description:  // the store caps this at 132 characters (release.mjs checks)
+    "Select any sentence on any site and check it on Verisphere: the claims it states, where the stake stands, and take a side.",
   icons: {
     16: "icons/icon-16.png",
     32: "icons/icon-32.png",
