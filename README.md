@@ -55,6 +55,11 @@ Then load `dist/` (or the dev server output) via
 
 ## Releases
 
+- **0.1.6** (2026-11-03) — check mode resolves the selection against its page before locating it, so "It was first
+  identified in December 2019" on the COVID-19 article finds the COVID-19 claim; with no page context, or the resolver
+  unreachable, the selection is located as written. (The underliner's equivalent is server-side: app
+  patch_locate_anchors.) patch_ext_check_resolve
+
 - **0.1.5** (2026-11-03) — a claim must stand alone: the create flow sends the page title and the paragraph around the
   text to the app's `/api/claims/resolve`, which replaces pronouns and bare references ("It" → "The office printer",
   "Early cases" → "Early COVID-19 cases") and says what it changed; "Stands alone" is the first check, and creation is
