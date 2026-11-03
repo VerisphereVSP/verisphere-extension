@@ -20,7 +20,7 @@ export type CheckRoute =
   | { kind: "create"; id: string };
 
 /** Resolve the text against the app and write the record the panel will open. */
-export async function checkText(text: string, opts: { phrases?: string[]; now?: () => number } = {}): Promise<CheckRoute> {
+export async function checkText(text: string, opts: { phrases?: string[]; now?: () => number; contextEl?: HTMLElement | null } = {}): Promise<CheckRoute> {
   const id = `check-${(opts.now ?? Date.now)()}`;
   const res = await api.resolveArticle({
     url: page.url,
@@ -32,7 +32,7 @@ export async function checkText(text: string, opts: { phrases?: string[]; now?: 
   });
   const found = res.groups.filter((g) => g.sentenceIds.includes(id) || res.groups.length === 1);
   for (const g of found) groups.set(g.groupId, { ...g });
-  const base = { sentenceId: id, text, el: document.body, start: 0, end: 0, checked: true as const };
+  const base = { sentenceId: id, text, el: document.body, start: 0, end: 0, checked: true as const, contextEl: opts.contextEl ?? undefined };
   if (found.length === 1) {
     const g = found[0];
     records.set(id, { ...base, status: g.status, claim: g.claim, matchScore: g.matchScore, groupId: g.groupId, canonicalText: g.canonicalText });

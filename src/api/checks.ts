@@ -101,3 +101,27 @@ function minimalClaim(postId: number, text: string): Claim {
     outgoingCount: 0,
   };
 }
+
+// ── patch_ext_claim_resolve: a claim must stand alone ─────────────────────────────────────────────
+export interface ResolveResult {
+  resolved: string;
+  changes: { from: string; to: string }[];
+  needs_context: boolean;
+  reason: string;
+  dangling: string[];
+}
+
+/** Resolve a candidate claim against the page it came from (title + the paragraph around it): pronouns and bare
+ *  references replaced with what the page names; needs_context when the page does not say. */
+export async function resolveClaim(
+  text: string,
+  context: { title?: string; paragraph?: string; topic?: string },
+): Promise<{ ok: true; result: ResolveResult } | { ok: false; error: string }> {
+  const res = await bgFetch<ResolveResult>(`${env.appApiBase}/claims/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, context }),
+  });
+  if (!res.ok || !res.json) return { ok: false, error: res.error ?? `resolve ${res.status}` };
+  return { ok: true, result: res.json };
+}

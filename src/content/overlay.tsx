@@ -62,7 +62,9 @@ export function Overlay() {
         setHoverId(null);
         setSel(null);
         toastMsg("Checking…");
-        checkText(chosen)
+        const anchor = window.getSelection()?.anchorNode ?? null;
+        const contextEl = anchor ? (anchor.nodeType === 1 ? (anchor as HTMLElement) : anchor.parentElement) : null;
+        checkText(chosen, { contextEl })
           .then((route) => setPanelId(route.id))
           .catch((e) => toastMsg(e instanceof Error ? `Check failed: ${e.message}` : "Check failed"));
       }),

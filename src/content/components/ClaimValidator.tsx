@@ -6,7 +6,8 @@ import type { Claim } from "../../shared/types";
 import type { StakeSide } from "../store";
 import { api } from "../../api";
 import { runLocalChecks } from "../../shared/claimChecks";
-import { checkAtomicity, findDuplicates, moderateClaim } from "../../api/checks";
+import { checkAtomicity, findDuplicates, moderateClaim, resolveClaim } from "../../api/checks";
+import type { ClaimContext } from "../../shared/pageContext";  // patch_ext_claim_resolve
 import { useWallet } from "../../wallet/useWallet";
 import { writeMode } from "../../wallet/wallet";
 import { formatTxError } from "../../wallet/errors";
@@ -42,9 +43,12 @@ const DEFAULT_STAKE = 10; // VSP seeded into the create-and-stake amount field
 export function ClaimValidator({
   initialText,
   intentSide,
+  context,
   onResolved,
 }: {
   initialText: string;
+  /** patch_ext_claim_resolve: the page title and the paragraph around the text, for the stand-alone rewrite */
+  context?: ClaimContext;
   /** If present, the user came from the Support/Challenge pill: create + stake. */
   intentSide?: StakeSide;
   /**
@@ -74,6 +78,8 @@ export function ClaimValidator({
       .catch(() => {});
   }, []);
 
+  const [standalone, setStandalone] = useState<RowState>(loadingRow);  // patch_ext_claim_resolve
+  const [resolvedNote, setResolvedNote] = useState<string | null>(null);
   const [wellFormed, setWellFormed] = useState<RowState>(okRow);
   const [verifiable, setVerifiable] = useState<RowState>(okRow);
   const [atomic, setAtomic] = useState<RowState>(loadingRow);
@@ -105,6 +111,36 @@ export function ClaimValidator({
 
     const claimText = local.canonicalText;
 
+    // patch_ext_claim_resolve: a claim must stand alone. The page is the only place "it" / "the market" can be
+    // resolved, so this runs first and, when it rewrites, the other checks run again on the rewrite.
+    setStandalone(loadingRow);
+    setResolvedNote(null);
+    resolveClaim(claimText, context ?? {}).then((r) => {
+      if (!r.ok) return setStandalone({ status: "warn", message: "Couldn’t check (service offline)." });
+      const { resolved, changes, needs_context, dangling, reason } = r.result;
+      if (needs_context) {
+        const what = dangling.length ? `Say what “${dangling.join(", ")}” refers to.` : reason || "Name what it refers to.";
+        return setStandalone({ status: "error", message: `${what} A claim has to stand on its own, away from this page.` });
+      }
+      if (resolved !== claimText && changes.length) {
+        setResolvedNote("Made to stand alone: " + changes.map((c) => `${c.from} → ${c.to}`).join(" · "));
+        setText(resolved);
+        setCanonical(resolved);
+        setStandalone(okRow);
+        // the rewrite is the claim: re-run the content checks on it (no second resolve)
+        rerunContentChecks(resolved);
+        return;
+      }
+      setStandalone(okRow);
+    });
+
+    rerunContentChecks(claimText);
+  }
+
+  function rerunContentChecks(claimText: string) {
+    setAtomic(loadingRow);
+    setModeration(loadingRow);
+    setDedup(loadingRow);
     checkAtomicity(claimText).then((r) => {
       if (!r.ok) return setAtomic({ status: "warn", message: "Couldn’t verify (service offline)." });
       if (r.result.atomic) return setAtomic(okRow);
@@ -133,7 +169,7 @@ export function ClaimValidator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rows = [wellFormed, verifiable, atomic, moderation, dedup];
+  const rows = [standalone, wellFormed, verifiable, atomic, moderation, dedup];
   const anyLoading = rows.some((r) => r.status === "loading");
   const anyError = rows.some((r) => r.status === "error");
   const anyWarn = rows.some((r) => r.status === "warn");
@@ -253,9 +289,13 @@ export function ClaimValidator({
         </button>
       </div>
 
+      {hasRun && resolvedNote && (
+        <div data-vr="resolved-note" style={{ fontSize: 11.5, color: "#37299B", background: "#EDEAFB", border: "1px solid #D9D4F0", borderRadius: 8, padding: "6px 10px", marginBottom: 10 }}>{resolvedNote}</div>
+      )}
       {hasRun && (
         <>
           <div style={{ border: `1px solid ${tokens.line}`, borderRadius: 8, padding: 10, marginBottom: 10 }}>
+            <Row label="Stands alone" row={standalone} />
             <Row label="Coherent & complete" row={wellFormed} />
             <Row label="Objectively checkable" row={verifiable} />
             <Row label="Single assertion" row={atomic} />
