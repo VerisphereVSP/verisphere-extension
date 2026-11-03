@@ -5,6 +5,7 @@ import { HoverCard } from "./components/HoverCard";
 import { SidePanel } from "./components/SidePanel";
 import { Launcher } from "./components/Launcher";
 import { expandToSentenceRange } from "./sentenceSelection";
+import { checkText, normalizeCheckText } from "./check";  // patch_ext_check
 import { claimFragmentSpan } from "./claimFragment";
 import { tokens } from "../shared/tokens";
 import type { ClaimGroup } from "../shared/types";
@@ -50,6 +51,20 @@ export function Overlay() {
       on("create", ({ sentenceId }) => {
         setHoverId(null);
         setPanelId(sentenceId);
+      }),
+      // patch_ext_check: "Check on Verisphere" from the context menu or the toolbar, on any page
+      on("check", ({ text }) => {
+        const chosen = normalizeCheckText(text ?? window.getSelection()?.toString());
+        if (!chosen) {
+          toastMsg("Select a sentence first, then Check on Verisphere.");
+          return;
+        }
+        setHoverId(null);
+        setSel(null);
+        toastMsg("Checking…");
+        checkText(chosen)
+          .then((route) => setPanelId(route.id))
+          .catch((e) => toastMsg(e instanceof Error ? `Check failed: ${e.message}` : "Check failed"));
       }),
     ];
     const ready = () => force((n) => n + 1);

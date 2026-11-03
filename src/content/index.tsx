@@ -3,7 +3,7 @@ import { api } from "../api";
 import { extractSentences } from "./sentences";
 import { extractPhrases } from "./phrases";
 import { injectMarkStyles, paint } from "./highlighter";
-import { groups, hooks, page, pageStatus, rankedGroups, records, type SentenceRecord } from "./store";
+import { emit, groups, hooks, page, pageStatus, rankedGroups, records, type SentenceRecord } from "./store";
 import type { ArticleResolveResult } from "../shared/types";
 import { wallet } from "../wallet/wallet";
 import { Overlay } from "./overlay";
@@ -37,8 +37,34 @@ const SETTLE_MS = 1000;
 // instead of the whole viewport blocking on its slowest paragraph.
 const MAX_BATCH_SENTENCES = 40;
 
+// patch_ext_check: the script may arrive twice on one page — declared for Wikipedia and injected on demand for a
+// check — and must mount once. The flag lives on the content script's own global (isolated world).
+const W = window as unknown as { __verisphereMounted?: boolean; __verisphereCheckQueue?: (string | null)[] };
+
+function mountOnce(): boolean {
+  if (W.__verisphereMounted) return false;
+  W.__verisphereMounted = true;
+  injectMarkStyles();
+  mountOverlay();
+  // Silently restore a prior wallet session (no prompt) so a page refresh
+  // doesn't demand a reconnect.
+  void wallet.restore();
+  return true;
+}
+
+// Messages from the background: a check requested by the reader. Mount if this is the first thing to happen on
+// the page (a non-Wikipedia page, or the overlay switched off), then hand the text to the overlay.
+chrome.runtime.onMessage.addListener((msg: { type?: string; text?: string | null }, _sender, sendResponse) => {
+  if (msg?.type === "verisphere:ping") { sendResponse({ mounted: !!W.__verisphereMounted }); return; }
+  if (msg?.type !== "verisphere:check") return;
+  const first = mountOnce();
+  // the overlay registers its listeners on mount; give React one tick when this was the mount
+  setTimeout(() => emit("check", { text: msg.text ?? null }), first ? 50 : 0);
+  sendResponse({ ok: true });
+});
+
 async function boot() {
-  // Honor the popup on/off toggle.
+  // Honor the popup on/off toggle (an explicit check still works: see the message listener above).
   const { enabled } = await chrome.storage.local.get("enabled");
   if (enabled === false) {
     console.log("[Verisphere] overlay disabled via popup");
@@ -47,11 +73,7 @@ async function boot() {
   console.log("[Verisphere] content script loaded on", location.href);
   // Mount the overlay unconditionally so the launcher is always a proof of
   // life, even if this page's markup yields no extractable sentences.
-  injectMarkStyles();
-  mountOverlay();
-  // Silently restore a prior wallet session (no prompt) so a page refresh
-  // doesn't demand a reconnect.
-  void wallet.restore();
+  if (!mountOnce()) return;
 
   const raw = extractSentences();
   console.log(`[Verisphere] extracted ${raw.length} sentences`);
@@ -261,4 +283,7 @@ function mountOverlay() {
   createRoot(container).render(<Overlay />);
 }
 
-boot();
+// patch_ext_check: when injected on demand (not declared for this page) the page is not an article to analyze — the
+// message that follows the injection opens the panel; booting here would also paint the launcher on every site.
+const declaredHere = /(^|\.)wikipedia\.org$/.test(location.hostname);
+if (declaredHere) void boot();

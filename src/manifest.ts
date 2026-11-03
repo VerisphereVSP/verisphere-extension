@@ -15,16 +15,18 @@ export default defineManifest((env) => {
   const vars = loadEnv(env.mode, process.cwd(), "VITE_");
   const apiBase = vars.VITE_APP_API_BASE ?? "https://test.verisphere.co/api";
   const apiOrigin = new URL(apiBase).origin;
+  // patch_ext_check (0.1.4): still only Wikipedia and the app's API up front; every other site is reached on the
+  // reader's own gesture through activeTab + scripting, never by a declared host permission.
   const hostPermissions =
     env.mode === "production"
       ? ["*://*.wikipedia.org/*", `${apiOrigin}/api/*`]
-      : ["*://*.wikipedia.org/*", "http://localhost:8070/*", `${apiOrigin}/api/*`];
+      : ["*://*.wikipedia.org/*", "http://localhost:8070/*", "http://localhost:5173/*", `${apiOrigin}/api/*`];
   return {
   manifest_version: 3,
-  name: "Verisphere — Truth-staking for Wikipedia",
+  name: "Verisphere — Truth-staking for the web",
   version: pkgVersion,
   description:
-    "Highlights stakeable factual claims on Wikipedia, shows their on-chain Verity Score, and lets you stake or create claims.",
+    "Select any sentence on any site and check it on Verisphere: the claims it states, where the stake stands, and your chance to take a side.",
   icons: {
     16: "icons/icon-16.png",
     32: "icons/icon-32.png",
@@ -44,6 +46,8 @@ export default defineManifest((env) => {
     service_worker: "src/background/service-worker.ts",
     type: "module",
   },
+  // patch_ext_check: the first-run page (opened once after install) doubles as the extension's options page
+  options_page: "src/welcome/index.html",
   content_scripts: [
     {
       matches: ["*://*.wikipedia.org/wiki/*"],
@@ -57,14 +61,23 @@ export default defineManifest((env) => {
       run_at: "document_start",
       world: "MAIN",
     },
+    {
+      // patch_ext_check: on the app's own pages, only a marker so the app can hide its "Install the extension" button
+      matches: [`${apiOrigin}/*`],
+      js: ["src/content/marker.ts"],
+      run_at: "document_start",
+    },
   ],
   // Pages the overlay runs on, plus the app API it calls (see the mode logic above).
   host_permissions: hostPermissions,
-  permissions: ["storage", "activeTab"],
+  // patch_ext_check: contextMenus for "Check on Verisphere" on a selection; scripting to inject the overlay into the
+  // active tab on that gesture (activeTab grants the page for it).
+  permissions: ["storage", "activeTab", "contextMenus", "scripting"],
   // The pill/panel <img> tags live in the page DOM, so the page must be
   // allowed to load the icon from the extension origin.
+  // The panel can now open on any site the reader checks, so the icons must be loadable anywhere.
   web_accessible_resources: [
-    { resources: ["icons/*.png"], matches: ["*://*.wikipedia.org/*"] },
+    { resources: ["icons/*.png"], matches: ["<all_urls>"] },
   ],
   };
 });

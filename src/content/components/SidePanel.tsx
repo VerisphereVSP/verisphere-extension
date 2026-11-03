@@ -5,6 +5,8 @@ import { fmtVsp, shortAddr } from "../../shared/format";
 import type { Claim, Edge } from "../../shared/types";
 import { api } from "../../api";
 import { records, groups, createIntents, applyClaimToGroup, emit, pageStatus, rankedGroups, type SentenceRecord } from "../store";
+import { SharePanel } from "./SharePanel";  // patch_ext_share
+import { handoffUrl } from "../check";  // patch_ext_check
 import { repaintSentence, repaintGroup } from "../highlighter";
 import { VSBar, VSChip } from "./VS";
 import { StakeWidget } from "./StakeWidget";
@@ -23,6 +25,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
   const [edges, setEdges] = useState<{ incoming: Edge[]; outgoing: Edge[] }>({ incoming: [], outgoing: [] });
   const [menuOpen, setMenuOpen] = useState(false);
   const [trade, setTrade] = useState<TradeSide | null>(null); // in-panel Buy / Sell VSP card
+  const [shareOpen, setShareOpen] = useState(false); // patch_ext_share
   const isCreate = rec?.status === "eligible" && !claim && !rec?.listAll;
   const intent = createIntents.get(sentenceId);
 
@@ -219,7 +222,8 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
         ) : isCreate ? (
           <>
             {rec.fluffNotice && <FluffNotice rec={rec} />}
-            <SourceQuote text={rec.text} />
+            {rec.checked && <div style={info}>No one has staked on this yet — you would be the first to put it on Verisphere.</div>}
+            <SourceQuote text={rec.text} label={rec.checked ? "You checked" : undefined} />
             {rec.canonicalText && rec.canonicalText !== rec.text && (
               <div style={{ fontSize: 11, color: tokens.faint, margin: "-8px 0 12px" }}>
                 Rewritten as a standalone claim — edit below if needed.
@@ -229,6 +233,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
           </>
         ) : claim ? (
           <>
+            {rec.checked && <SourceQuote text={rec.text} label="You checked" />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <VSChip evs={claim.evs} active={claim.active} />
               <span style={{ fontSize: 11, color: tokens.faint }}>claim #{claim.postId}</span>
@@ -262,6 +267,15 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
             <div style={{ margin: "16px 0" }}>
               <StakeWidget claim={claim} initialSide={intent} onUpdated={applyClaim} />
             </div>
+
+            {/* patch_ext_check / patch_ext_share: the app's Start sheet for readers without MetaMask on this page
+                (passkey wallets live in the app), and sharing with an optional invitation */}
+            <div style={{ display: "flex", gap: 8, margin: "0 0 12px" }}>
+              <a data-vr="handoff" href={handoffUrl(env.appUrl, claim.postId, intent)} target="_blank" rel="noopener" style={{ ...ghostWide, flex: 1, textAlign: "center", textDecoration: "none", color: tokens.brand }}
+                title="Open this claim in the Verisphere app — the Start sheet makes a passkey wallet if you have none">Back it in the app ↗</a>
+              <button data-vr="share-toggle" onClick={() => setShareOpen((v) => !v)} style={{ ...ghostWide, flex: 1 }}>{shareOpen ? "Hide share" : "Share"}</button>
+            </div>
+            {shareOpen && <SharePanel postId={claim.postId} onClose={() => setShareOpen(false)} />}
 
             <Evidence edges={edges} />
 
@@ -504,9 +518,10 @@ function FluffNotice({ rec }: { rec: { el: HTMLElement } }) {
   );
 }
 
-function SourceQuote({ text }: { text: string }) {
+function SourceQuote({ text, label }: { text: string; label?: string }) {
   return (
     <div style={{ borderLeft: `3px solid ${tokens.brand}`, padding: "4px 0 4px 12px", margin: "0 0 14px", fontSize: 13, color: tokens.muted, fontStyle: "italic", lineHeight: 1.45 }}>
+      {label && <div style={{ fontSize: 10.5, fontStyle: "normal", fontWeight: 700, letterSpacing: 0.4, color: tokens.faint, marginBottom: 2 }}>{label.toUpperCase()}</div>}
       “{text}”
     </div>
   );

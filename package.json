@@ -1,9 +1,9 @@
 {
   "name": "verisphere-extension",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
-  "description": "Verisphere \u2014 a truth-staking overlay for Wikipedia.",
+  "description": "Verisphere — a truth-staking overlay for Wikipedia.",
   "scripts": {
     "dev": "node scripts/run.mjs dev",
     "build": "tsc --noEmit && node scripts/run.mjs build",

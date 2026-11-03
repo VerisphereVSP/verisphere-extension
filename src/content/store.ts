@@ -23,6 +23,9 @@ export interface SentenceRecord extends SentenceMatch {
   claimEnd?: number;
   /** Selection touched only fluff — panel shows the no-claim empty state. */
   fluffNotice?: boolean;
+  /** patch_ext_check: this record came from "Check on Verisphere" (any page): the panel says so and the quote is
+   *  the reader's selection, not a located sentence. */
+  checked?: boolean;
   /**
    * Several claims to choose between — the panel renders a chooser instead of
    * create/stake until one is picked. Set when a text selection touched several
@@ -119,6 +122,8 @@ export type Bus = {
   hoverEnd: {};
   open: { sentenceId: string };
   create: { sentenceId: string; text: string };
+  /** patch_ext_check: the reader asked to check a piece of text (context menu / toolbar); null = use the page's selection */
+  check: { text: string | null };
 };
 
 export function emit<K extends keyof Bus>(type: K, detail: Bus[K]) {

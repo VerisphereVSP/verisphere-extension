@@ -11,6 +11,7 @@ import { env } from "../shared/env";
  */
 export function Popup() {
   const [enabled, setEnabled] = useState(true);
+  const [checkNote, setCheckNote] = useState<string | null>(null); // patch_ext_check
 
   useEffect(() => {
     chrome.storage?.local.get("enabled").then((v) => {
@@ -35,11 +36,26 @@ export function Popup() {
     <div style={{ font: `14px ${tokens.font}`, color: tokens.ink }}>
       <div style={{ background: `linear-gradient(90deg, ${tokens.brandInk}, ${tokens.brand})`, color: "#fff", padding: "14px 16px" }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>Verisphere</div>
-        <div style={{ fontSize: 12, opacity: 0.85 }}>Verisphere truth layer for Wikipedia</div>
+        <div style={{ fontSize: 12, opacity: 0.85 }}>Check any claim you read</div>
       </div>
 
       <div style={{ padding: 16 }}>
-        <Row label="Overlay">
+        {/* patch_ext_check: the toolbar route to the same check as the context menu */}
+        <button
+          onClick={async () => {
+            setCheckNote(null);
+            const r = (await chrome.runtime.sendMessage({ type: "vr-check-active" })) as { ok?: boolean; error?: string } | undefined;
+            if (r?.ok) window.close();
+            else setCheckNote(r?.error ?? "Select a sentence on the page first");
+          }}
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "none", background: tokens.brand, color: "#fff", font: `700 13px ${tokens.font}`, cursor: "pointer", marginBottom: 6 }}
+        >
+          Check the selected text
+        </button>
+        <div style={{ fontSize: 11.5, color: tokens.muted, marginBottom: 14, lineHeight: 1.4 }}>
+          {checkNote ?? <>Or select text on any page and right-click → <b>Check on Verisphere</b>.</>}
+        </div>
+        <Row label="Wikipedia underlines">
           <button
             onClick={toggle}
             style={{ ...toggleBtn, background: enabled ? tokens.support : tokens.line, color: enabled ? "#fff" : tokens.muted }}
