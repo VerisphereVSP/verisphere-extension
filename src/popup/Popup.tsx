@@ -36,7 +36,7 @@ export function Popup() {
     <div style={{ font: `14px ${tokens.font}`, color: tokens.ink }}>
       <div style={{ background: `linear-gradient(90deg, ${tokens.brandInk}, ${tokens.brand})`, color: "#fff", padding: "14px 16px" }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>Verisphere</div>
-        <div style={{ fontSize: 12, opacity: 0.85 }}>Check any claim you read</div>
+        <div style={{ fontSize: 12, opacity: 0.85 }}>Spot misinformation as you read</div>
       </div>
 
       <div style={{ padding: 16 }}>

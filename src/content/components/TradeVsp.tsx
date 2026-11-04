@@ -279,7 +279,7 @@ export function TradeVsp({ side, onTraded }: { side: TradeSide; onTraded?: (out:
             </div>
             {tooShallow && (
               <div style={{ color: tokens.challenge, fontWeight: 600 }}>
-                The pool is too shallow for this trade — it would lose more than {IMPACT_BLOCK_PCT}% to price impact.
+                The pool is too shallow for this trade — it would cost more than {IMPACT_BLOCK_PCT}% to price impact.
               </div>
             )}
             <div>

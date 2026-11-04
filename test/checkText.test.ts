@@ -37,6 +37,6 @@ test("withInvitation puts the code on the link and the invitation line above a t
   const text = `100 % of stake on Verisphere challenges it:\n“A claim.”\nAgree? Support it. Disagree? Challenge it.\n${url}`;
   const r = withInvitation(url, text, "VSP-AAAA-BBBB-CCCC", "2");
   assert.equal(r.url, `${url}?code=VSP-AAAA-BBBB-CCCC`);
-  assert.deepEqual(r.text.split("\n").slice(-2), ["I've put 2 VSP on the table for you — the link carries it.", r.url]);
-  assert.equal(withInvitation(url, `see ${url}`, "VSP-AAAA-BBBB-CCCC", "1").text, `see ${url}?code=VSP-AAAA-BBBB-CCCC I've put 1 VSP on the table for you — the link carries it.`);
+  assert.deepEqual(r.text.split("\n").slice(-2), ["I've set aside 2 VSP for you to try Verisphere — the link carries it.", r.url]);
+  assert.equal(withInvitation(url, `see ${url}`, "VSP-AAAA-BBBB-CCCC", "1").text, `see ${url}?code=VSP-AAAA-BBBB-CCCC I've set aside 1 VSP for you to try Verisphere — the link carries it.`);
 });

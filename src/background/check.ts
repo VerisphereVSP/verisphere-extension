@@ -7,7 +7,7 @@ import contentScript from "../content/dynamic.tsx?script";
 import inpageScript from "../inpage/dynamic.ts?iife";
 
 export const MENU_ID = "verisphere-check";
-export const MENU_TITLE = "Check on Verisphere";
+export const MENU_TITLE = "Check on Verisphere";  // the one gesture the first-run page teaches; keep it
 
 import { injectable } from "../shared/checkText";
 export { injectable };

@@ -23,10 +23,10 @@ export default defineManifest((env) => {
       : ["*://*.wikipedia.org/*", "http://localhost:8070/*", "http://localhost:5173/*", `${apiOrigin}/api/*`];
   return {
   manifest_version: 3,
-  name: "Verisphere — Truth-staking for the web",
+  name: "Verisphere — Spot misinformation on any page",
   version: pkgVersion,
   description:  // the store caps this at 132 characters (release.mjs checks)
-    "Select any sentence on any site and check it on Verisphere: the claims it states, where the stake stands, and take a side.",
+    "Spot misinformation as you read: select any sentence, check it on Verisphere, and see how much is staked for and against it.",
   icons: {
     16: "icons/icon-16.png",
     32: "icons/icon-32.png",
