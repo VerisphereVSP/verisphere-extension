@@ -80,7 +80,7 @@ export function SharePanel({ postId, onClose }: { postId: number; onClose: () =>
           </div>
           {connected && !issued && !inviteOpen && (
             <button data-vr="share-invite-open" onClick={() => setInviteOpen(true)} style={{ ...btn, width: "100%", marginTop: 8, color: tokens.brand }}
-              title="Escrow some of your VSP behind this link so the reader can take a side without buying first">Include an invitation (put VSP on the table)</button>
+              title="Set aside some of your VSP behind this link so the reader can try Verisphere without buying first">Include an invitation</button>
           )}
           {connected && inviteOpen && !issued && (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 12, color: tokens.muted }}>
@@ -91,10 +91,10 @@ export function SharePanel({ postId, onClose }: { postId: number; onClose: () =>
           )}
           {issued && (
             <div data-vr="share-invited" style={{ marginTop: 8, fontSize: 12, color: tokens.ink, background: "#EDEAFB", border: "1px solid #D9D4F0", borderRadius: 8, padding: "6px 10px" }}>
-              {issued.amount_vsp} VSP on the table · code <b>{issued.code}</b> · the link above carries it. Revoke any time from Positions in the app.
+              {issued.amount_vsp} VSP set aside · code <b>{issued.code}</b> · the link above carries it. Revoke any time from Positions in the app.
             </div>
           )}
-          {!connected && <div style={{ marginTop: 8, fontSize: 11, color: tokens.faint }}>Connect a wallet to include an invitation (VSP you set aside for the reader).</div>}
+          {!connected && <div style={{ marginTop: 8, fontSize: 11, color: tokens.faint }}>Connect a wallet to include an invitation (VSP you set aside so the reader can try Verisphere).</div>}
         </>
       )}
       {note && <div style={{ marginTop: 8, fontSize: 12, color: tokens.support, fontWeight: 600 }}>{note}</div>}

@@ -274,7 +274,7 @@ export function SidePanel({ sentenceId, onClose }: { sentenceId: string; onClose
                 (passkey wallets live in the app), and sharing with an optional invitation */}
             <div style={{ display: "flex", gap: 8, margin: "0 0 12px" }}>
               <a data-vr="handoff" href={handoffUrl(env.appUrl, claim.postId, intent)} target="_blank" rel="noopener" style={{ ...ghostWide, flex: 1, textAlign: "center", textDecoration: "none", color: tokens.brand }}
-                title="Open this claim in the Verisphere app — the Start sheet makes a passkey wallet if you have none">Back it in the app ↗</a>
+                title="Open this claim in the Verisphere app — it makes a passkey wallet for you if you have none">Open in the app ↗</a>
               <button data-vr="share-toggle" onClick={() => setShareOpen((v) => !v)} style={{ ...ghostWide, flex: 1 }}>{shareOpen ? "Hide share" : "Share"}</button>
             </div>
             {shareOpen && <SharePanel postId={claim.postId} onClose={() => setShareOpen(false)} />}
